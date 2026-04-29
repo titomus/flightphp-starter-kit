@@ -30,6 +30,7 @@ final class CoreTemplateCatalog
                 '.env.example' => $this->project->templateEnvExample($vars),
                 'README.md' => $this->project->templateReadme($vars, $features),
                 'public/index.php' => $this->renderer->render($this->project->templatePublicIndex(), $vars),
+                'public/router.php' => $this->project->templatePublicRouter(),
                 'public/.htaccess' => $this->project->templateHtaccess(),
             ],
             $this->runtime->files($vars),

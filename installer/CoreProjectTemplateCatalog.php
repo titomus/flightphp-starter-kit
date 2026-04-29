@@ -29,7 +29,7 @@ final class CoreProjectTemplateCatalog
                 ],
             ],
             'scripts' => [
-                'start' => 'php -S localhost:8000 -t public public/index.php',
+                'start' => 'php -S localhost:8000 -t public public/router.php',
                 'migrate' => 'php app/Console/console.php migrate',
                 'rollback' => 'php app/Console/console.php rollback',
                 'seed' => 'php app/Console/console.php seed',
@@ -252,7 +252,7 @@ cp .env.example .env
 npm run build
 php app/Console/console.php migrate
 php app/Console/console.php seed
-php -S localhost:8000 -t public public/index.php
+php -S localhost:8000 -t public public/router.php
 ```
 
 ## Commands
@@ -298,6 +298,24 @@ define('APP_CONTEXT', 'web');
 require dirname(__DIR__) . '/app/bootstrap.php';
 
 \Flight::start();
+PHP;
+    }
+
+    public function templatePublicRouter(): string
+    {
+        return <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$file = __DIR__ . DIRECTORY_SEPARATOR . ltrim($path, '/');
+
+if ($path !== '/' && is_file($file)) {
+    return false;
+}
+
+require __DIR__ . '/index.php';
 PHP;
     }
 

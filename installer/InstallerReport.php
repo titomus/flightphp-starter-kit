@@ -60,7 +60,7 @@ final class InstallerReport
         echo '  php -l install-flight-starter.php' . PHP_EOL;
         echo '  php install-flight-starter.php --dry-run' . PHP_EOL;
         echo '  php install-flight-starter.php --force' . PHP_EOL;
-        echo '  php -S localhost:8000 -t public public/index.php' . PHP_EOL;
+        echo '  php -S localhost:8000 -t public public/router.php' . PHP_EOL;
         echo '  php app/Console/console.php migrate' . PHP_EOL;
         echo '  php app/Console/console.php queue:dispatch App\\Jobs\\ExampleJob {"message":"hello"}' . PHP_EOL;
         echo '  php app/Console/console.php queue:dispatch App\\Jobs\\SendMailJob {"to":"hello@example.com","subject":"Welcome","html":"<h1>Hello</h1>"}' . PHP_EOL;
