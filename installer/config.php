@@ -255,7 +255,7 @@ return [
     'frontend' => [
         'vite' => true,
         'tailwind' => true,
-        'build_dir' => 'build',
+        'build_dir' => '',
         'dev_server' => '',
     ],
     'features' => [

@@ -6,6 +6,9 @@ final class FrontendTemplateCatalog
 {
     public function files(array $vars): array
     {
+        $buildDir = trim((string) $vars['frontend_build_dir'], '/');
+        $assetKeepPath = $buildDir !== '' ? 'public/' . $buildDir . '/.gitkeep' : 'public/assets/.gitkeep';
+
         return [
             'package.json' => $this->templatePackageJson($vars),
             'vite.config.js' => $this->templateViteConfig($vars),
@@ -13,7 +16,7 @@ final class FrontendTemplateCatalog
             'postcss.config.js' => $this->templatePostCssConfig(),
             'app/config/frontend.php' => $this->templateFrontendConfig($vars),
             'app/config/design.php' => $this->templateDesignConfig($vars),
-            'public/build/.gitkeep' => '',
+            $assetKeepPath => '',
             'resources/css/app.css' => $this->templateViteCss($vars),
             'resources/js/app.js' => $this->templateViteJs(),
         ];
@@ -75,6 +78,10 @@ PHP;
 
     private function templateViteConfig(array $vars): string
     {
+        $buildDir = trim((string) $vars['frontend_build_dir'], '/');
+        $outDir = $buildDir !== '' ? 'public/' . $buildDir : 'public';
+        $emptyOutDir = $buildDir !== '' ? 'true' : 'false';
+
         return <<<JS
 import { defineConfig } from 'vite';
 
@@ -87,8 +94,8 @@ export default defineConfig({
     },
     build: {
         manifest: 'manifest.json',
-        outDir: 'public/{$vars['frontend_build_dir']}',
-        emptyOutDir: true,
+        outDir: '{$outDir}',
+        emptyOutDir: {$emptyOutDir},
         rollupOptions: {
             input: ['resources/js/app.js'],
         },

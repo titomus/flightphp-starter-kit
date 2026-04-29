@@ -231,10 +231,9 @@ if (!function_exists('vite_tags')) {
         }
 
         $buildDir = trim((string) env('VITE_BUILD_DIR', (string) config('frontend.build_dir', '{{frontend_build_dir}}')), '\\/');
-        $manifestCandidates = [
-            public_path($buildDir . '/manifest.json'),
-            public_path($buildDir . '/.vite/manifest.json'),
-        ];
+        $manifestCandidates = $buildDir !== ''
+            ? [public_path($buildDir . '/manifest.json'), public_path($buildDir . '/.vite/manifest.json')]
+            : [public_path('manifest.json'), public_path('.vite/manifest.json')];
         $manifestPath = null;
         foreach ($manifestCandidates as $candidate) {
             if (is_file($candidate)) {
@@ -252,6 +251,7 @@ if (!function_exists('vite_tags')) {
         }
 
         $tags = [];
+        $assetBase = $buildDir !== '' ? '/' . $buildDir . '/' : '/';
         foreach ($entries as $entry) {
             $key = ltrim($entry, '/');
             if (!isset($manifest[$key])) {
@@ -260,10 +260,10 @@ if (!function_exists('vite_tags')) {
 
             $asset = $manifest[$key];
             foreach ($asset['css'] ?? [] as $cssFile) {
-                $tags[] = '<link rel="stylesheet" href="/' . $buildDir . '/' . ltrim((string) $cssFile, '/') . '">';
+                $tags[] = '<link rel="stylesheet" href="' . $assetBase . ltrim((string) $cssFile, '/') . '">';
             }
             if (isset($asset['file'])) {
-                $tags[] = '<script type="module" src="/' . $buildDir . '/' . ltrim((string) $asset['file'], '/') . '"></script>';
+                $tags[] = '<script type="module" src="' . $assetBase . ltrim((string) $asset['file'], '/') . '"></script>';
             }
         }
 

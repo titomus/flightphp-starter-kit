@@ -58,6 +58,10 @@ final class CoreProjectTemplateCatalog
 !/app/storage/queue/.gitkeep
 /public/build/*
 !/public/build/.gitkeep
+/public/assets/*
+!/public/assets/.gitkeep
+/public/manifest.json
+/public/.vite/
 TEXT;
     }
 
