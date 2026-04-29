@@ -231,8 +231,18 @@ if (!function_exists('vite_tags')) {
         }
 
         $buildDir = trim((string) env('VITE_BUILD_DIR', (string) config('frontend.build_dir', '{{frontend_build_dir}}')), '\\/');
-        $manifestPath = public_path($buildDir . '/manifest.json');
-        if (!is_file($manifestPath)) {
+        $manifestCandidates = [
+            public_path($buildDir . '/manifest.json'),
+            public_path($buildDir . '/.vite/manifest.json'),
+        ];
+        $manifestPath = null;
+        foreach ($manifestCandidates as $candidate) {
+            if (is_file($candidate)) {
+                $manifestPath = $candidate;
+                break;
+            }
+        }
+        if ($manifestPath === null) {
             return '';
         }
 

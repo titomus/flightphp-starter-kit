@@ -29,7 +29,7 @@ final class CoreProjectTemplateCatalog
                 ],
             ],
             'scripts' => [
-                'start' => 'php -S localhost:8000 -t public',
+                'start' => 'php -S localhost:8000 -t public public/index.php',
                 'migrate' => 'php app/Console/console.php migrate',
                 'rollback' => 'php app/Console/console.php rollback',
                 'seed' => 'php app/Console/console.php seed',
@@ -252,7 +252,7 @@ cp .env.example .env
 npm run build
 php app/Console/console.php migrate
 php app/Console/console.php seed
-php -S localhost:8000 -t public
+php -S localhost:8000 -t public public/index.php
 ```
 
 ## Commands

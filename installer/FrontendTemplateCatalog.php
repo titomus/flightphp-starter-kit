@@ -79,13 +79,14 @@ PHP;
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+    publicDir: false,
     server: {
         host: '127.0.0.1',
         port: 5173,
         strictPort: true,
     },
     build: {
-        manifest: true,
+        manifest: 'manifest.json',
         outDir: 'public/{$vars['frontend_build_dir']}',
         emptyOutDir: true,
         rollupOptions: {
