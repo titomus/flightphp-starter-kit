@@ -73,6 +73,7 @@ final class FlightStarterInstaller
         if (!$this->options->dryRun) {
             $this->filesystem->ensureDatabaseFile((string) $this->config['database']['database']);
             $this->maybeRunComposerInstall();
+            $this->maybeRunNpmBuild();
         }
 
         $this->report->printSummary();
@@ -108,8 +109,22 @@ final class FlightStarterInstaller
             return;
         }
 
-        if (!$this->commandExists('composer')) {
-            echo PHP_EOL . 'Composer not found in PATH. Run `composer install` manually.' . PHP_EOL;
+        // Resolve composer binary: system composer, then local composer.phar
+        $composerBin = null;
+        if ($this->commandExists('composer')) {
+            $composerBin = 'composer';
+        } elseif (is_file($this->targetDir . DIRECTORY_SEPARATOR . 'composer.phar')) {
+            $composerBin = PHP_BINARY . ' composer.phar';
+        } elseif (is_file(dirname($this->targetDir) . DIRECTORY_SEPARATOR . 'composer.phar')) {
+            // Copy from parent directory
+            $src = dirname($this->targetDir) . DIRECTORY_SEPARATOR . 'composer.phar';
+            $dst = $this->targetDir . DIRECTORY_SEPARATOR . 'composer.phar';
+            @copy($src, $dst);
+            $composerBin = PHP_BINARY . ' composer.phar';
+        }
+
+        if ($composerBin === null) {
+            echo PHP_EOL . 'Composer not found. Run `composer install` manually.' . PHP_EOL;
             return;
         }
 
@@ -117,11 +132,53 @@ final class FlightStarterInstaller
         $cwd = getcwd();
 
         chdir($this->targetDir);
-        passthru('composer install', $exitCode);
+        passthru($composerBin . ' install --no-interaction', $exitCode);
         chdir($cwd === false ? $this->targetDir : $cwd);
 
         if ($exitCode !== 0) {
             echo 'Composer install exited with code ' . $exitCode . '. Continue manually if needed.' . PHP_EOL;
+        }
+    }
+
+    private function maybeRunNpmBuild(): void
+    {
+        $autoNpm = (bool) ($this->config['npm']['auto_build'] ?? true);
+        if (!$autoNpm) {
+            echo PHP_EOL . 'npm build skipped.' . PHP_EOL;
+            return;
+        }
+
+        if (!$this->commandExists('npm')) {
+            echo PHP_EOL . 'npm not found in PATH. Run `npm install && npm run build` manually.' . PHP_EOL;
+            return;
+        }
+
+        if (!is_file($this->targetDir . DIRECTORY_SEPARATOR . 'package.json')) {
+            echo PHP_EOL . 'No package.json found. npm build skipped.' . PHP_EOL;
+            return;
+        }
+
+        $cwd = getcwd();
+        chdir($this->targetDir);
+
+        echo PHP_EOL . 'Running npm install...' . PHP_EOL;
+        passthru('npm install', $exitCode);
+
+        if ($exitCode !== 0) {
+            echo 'npm install exited with code ' . $exitCode . '. Continue manually if needed.' . PHP_EOL;
+            chdir($cwd === false ? $this->targetDir : $cwd);
+            return;
+        }
+
+        echo PHP_EOL . 'Running npm run build...' . PHP_EOL;
+        passthru('npm run build', $exitCode);
+
+        chdir($cwd === false ? $this->targetDir : $cwd);
+
+        if ($exitCode !== 0) {
+            echo 'npm run build exited with code ' . $exitCode . '. Continue manually if needed.' . PHP_EOL;
+        } else {
+            echo PHP_EOL . 'Frontend assets built successfully.' . PHP_EOL;
         }
     }
 

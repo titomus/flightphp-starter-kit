@@ -327,7 +327,6 @@ PHP;
         ]));
 
         $index = <<<'VIEW'
-<?php ob_start(); ?>
 <section class="panel-card p-8">
     <header class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -358,11 +357,9 @@ PHP;
         </table>
     </div>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('admin/layouts/main.php'); ?>
 VIEW;
 
         $create = <<<'VIEW'
-<?php ob_start(); ?>
 <section class="panel-card p-8">
     <header class="mb-8">
         <p class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-sky-300">Generated CRUD</p>
@@ -380,7 +377,6 @@ VIEW;
         <button class="button-primary" type="submit">Save</button>
     </form>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('admin/layouts/main.php'); ?>
 VIEW;
 
         file_put_contents($viewDir . '/index.php', str_replace('{{plural}}', $plural, $index));

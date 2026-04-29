@@ -60,8 +60,6 @@ final class InstallerReport
         echo '  php -l install-flight-starter.php' . PHP_EOL;
         echo '  php install-flight-starter.php --dry-run' . PHP_EOL;
         echo '  php install-flight-starter.php --force' . PHP_EOL;
-        echo '  npm install' . PHP_EOL;
-        echo '  npm run build' . PHP_EOL;
         echo '  php -S localhost:8000 -t public' . PHP_EOL;
         echo '  php app/Console/console.php migrate' . PHP_EOL;
         echo '  php app/Console/console.php queue:dispatch App\\Jobs\\ExampleJob {"message":"hello"}' . PHP_EOL;

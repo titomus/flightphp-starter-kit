@@ -1224,7 +1224,6 @@ PHP;
     private function templateHomeView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="panel-card overflow-hidden p-8 md:p-12">
     <p class="eyebrow">Flight PHP Starter</p>
     <h1 class="display-title max-w-3xl text-4xl md:text-6xl"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
@@ -1286,7 +1285,6 @@ PHP;
         </div>
     <?php endif; ?>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 
@@ -1418,7 +1416,6 @@ PHP;
     private function templateFrontendLoginView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="mx-auto max-w-lg panel-card p-8">
     <header class="mb-8">
         <p class="eyebrow">Frontend auth</p>
@@ -1452,14 +1449,12 @@ PHP;
         <button class="button-primary w-full justify-center" type="submit">Se connecter</button>
     </form>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 
     private function templateFrontendRegisterView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="mx-auto max-w-lg panel-card p-8">
     <header class="mb-8">
         <p class="eyebrow">Frontend auth</p>
@@ -1501,14 +1496,12 @@ PHP;
         <button class="button-primary w-full justify-center" type="submit">Créer le compte</button>
     </form>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 
     private function templateAccountView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="panel-card p-8">
     <header class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -1539,14 +1532,12 @@ PHP;
         </article>
     </div>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 
     private function templatePricingView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="mx-auto max-w-4xl panel-card p-8 md:p-10">
     <header class="max-w-2xl">
         <p class="eyebrow">Stripe billing</p>
@@ -1584,14 +1575,12 @@ PHP;
         </ul>
     </article>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 
     private function templateBillingSuccessView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="mx-auto max-w-2xl panel-card p-8 text-center">
     <p class="eyebrow">Stripe billing</p>
     <h1 class="display-title mt-3 text-4xl">Paiement confirmé</h1>
@@ -1601,21 +1590,18 @@ PHP;
     <?php endif; ?>
     <a class="button-primary mt-8 inline-flex" href="<?= htmlspecialchars((string) $accountPath, ENT_QUOTES, 'UTF-8') ?>">Retour au compte</a>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 
     private function templateBillingCancelView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="mx-auto max-w-2xl panel-card p-8 text-center">
     <p class="eyebrow">Stripe billing</p>
     <h1 class="display-title mt-3 text-4xl">Checkout annulé</h1>
     <p class="lead-copy mt-4">Aucun problème. La page de pricing et le flux Stripe restent déjà branchés pour réessayer quand tu veux.</p>
     <a class="button-primary mt-8 inline-flex" href="<?= htmlspecialchars((string) $pricingPath, ENT_QUOTES, 'UTF-8') ?>">Retour au pricing</a>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('layouts/main.php'); ?>
 PHP;
     }
 }

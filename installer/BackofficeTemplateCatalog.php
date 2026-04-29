@@ -241,7 +241,6 @@ PHP;
     private function templateAdminViewContent(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="panel-card p-8">
     <header class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -275,14 +274,12 @@ PHP;
         </div>
     <?php endif; ?>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('admin/layouts/main.php'); ?>
 PHP;
     }
 
     private function templateAdminLoginView(): string
     {
         return <<<'PHP'
-<?php ob_start(); ?>
 <section class="mx-auto max-w-lg panel-card p-8">
     <header class="mb-8">
         <p class="eyebrow">Authentication</p>
@@ -309,7 +306,6 @@ PHP;
         <button class="button-primary w-full justify-center" type="submit">Sign in</button>
     </form>
 </section>
-<?php $content = (string) ob_get_clean(); include view_path('admin/layouts/main.php'); ?>
 PHP;
     }
 }
