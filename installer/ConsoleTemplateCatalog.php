@@ -255,13 +255,15 @@ final class CrudGenerator
 {
     public function generate(string $resource, array $fields): array
     {
-        $entity = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $resource)));
-        $plural = strtolower($resource);
+        $plural = $this->normalizeResource($resource);
+        $entity = str_replace(' ', '', ucwords(str_replace('_', ' ', rtrim($plural, 's'))));
         $controllerClass = $entity . 'Controller';
         $controllerPath = base_path('app/Controllers/Admin/' . $controllerClass . '.php');
         $viewDir = view_path('admin/generated/' . $plural);
         $routesPath = app_path('routes/admin_generated.php');
+        $migrationPath = app_path('Database/Migrations/' . date('YmdHis') . '_create_' . $plural . '_table.php');
         $table = $plural;
+        $fields = $this->normalizeFields($fields);
 
         if (!is_dir(dirname($controllerPath))) {
             mkdir(dirname($controllerPath), 0777, true);
@@ -269,6 +271,10 @@ final class CrudGenerator
 
         if (!is_dir($viewDir)) {
             mkdir($viewDir, 0777, true);
+        }
+
+        if (!is_dir(dirname($migrationPath))) {
+            mkdir(dirname($migrationPath), 0777, true);
         }
 
         $columns = var_export($fields, true);
@@ -290,21 +296,63 @@ final class __CONTROLLER_CLASS__ extends BaseController
 
     public function index(): void
     {
-        $records = Database::connection()->query('SELECT * FROM ' . $this->table . ' ORDER BY id DESC')->fetchAll();
-        echo $this->view('admin.generated.__PLURAL__.index', ['records' => $records, 'fields' => $this->fields, 'title' => '__ENTITY__'], 'admin.layouts.main');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = 25;
+        $offset = ($page - 1) * $perPage;
+        $total = (int) Database::connection()->query('SELECT COUNT(*) FROM ' . $this->table)->fetchColumn();
+        $records = Database::connection()->query('SELECT * FROM ' . $this->table . ' ORDER BY id DESC LIMIT ' . $perPage . ' OFFSET ' . $offset)->fetchAll();
+
+        echo $this->view('admin.generated.__PLURAL__.index', [
+            'records' => $records,
+            'fields' => $this->fields,
+            'title' => '__ENTITY__',
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'basePath' => config('backoffice.path', '/admin') . '/__PLURAL__',
+            'success' => flash_get('crud.success'),
+            'error' => flash_get('crud.error'),
+        ], 'admin.layouts.main');
     }
 
     public function create(): void
     {
-        echo $this->view('admin.generated.__PLURAL__.create', ['fields' => $this->fields, 'title' => '__ENTITY__'], 'admin.layouts.main');
+        echo $this->view('admin.generated.__PLURAL__.form', [
+            'fields' => $this->fields,
+            'title' => 'Create __ENTITY__',
+            'record' => [],
+            'action' => config('backoffice.path', '/admin') . '/__PLURAL__',
+            'submitLabel' => 'Create',
+            'error' => flash_get('crud.error'),
+        ], 'admin.layouts.main');
+    }
+
+    public function edit(string $id): void
+    {
+        $record = $this->findRecord((int) $id);
+        if ($record === null) {
+            flash_set('crud.error', '__ENTITY__ not found.');
+            redirect(config('backoffice.path', '/admin') . '/__PLURAL__');
+        }
+
+        echo $this->view('admin.generated.__PLURAL__.form', [
+            'fields' => $this->fields,
+            'title' => 'Edit __ENTITY__',
+            'record' => $record,
+            'action' => config('backoffice.path', '/admin') . '/__PLURAL__/' . (int) $id,
+            'submitLabel' => 'Save changes',
+            'error' => flash_get('crud.error'),
+        ], 'admin.layouts.main');
     }
 
     public function store(): void
     {
         $this->guardCsrf();
-        $payload = [];
-        foreach ($this->fields as $field => $type) {
-            $payload[$field] = $_POST[$field] ?? null;
+        [$payload, $errors] = $this->payloadFromRequest();
+
+        if ($errors !== []) {
+            flash_set('crud.error', implode(' ', $errors));
+            redirect(config('backoffice.path', '/admin') . '/__PLURAL__/create');
         }
 
         $columns = implode(', ', array_keys($payload));
@@ -312,8 +360,109 @@ final class __CONTROLLER_CLASS__ extends BaseController
         $statement = Database::connection()->prepare('INSERT INTO ' . $this->table . ' (' . $columns . ') VALUES (' . $params . ')');
         $statement->execute($payload);
 
-        header('Location: ' . config('backoffice.path', '/admin') . '/__PLURAL__');
-        exit;
+        flash_set('crud.success', '__ENTITY__ created.');
+        redirect(config('backoffice.path', '/admin') . '/__PLURAL__');
+    }
+
+    public function update(string $id): void
+    {
+        $this->guardCsrf();
+        $record = $this->findRecord((int) $id);
+        if ($record === null) {
+            flash_set('crud.error', '__ENTITY__ not found.');
+            redirect(config('backoffice.path', '/admin') . '/__PLURAL__');
+        }
+
+        [$payload, $errors] = $this->payloadFromRequest();
+        if ($errors !== []) {
+            flash_set('crud.error', implode(' ', $errors));
+            redirect(config('backoffice.path', '/admin') . '/__PLURAL__/' . (int) $id . '/edit');
+        }
+
+        $assignments = implode(', ', array_map(static fn (string $field): string => $field . ' = :' . $field, array_keys($payload)));
+        $payload['id'] = (int) $id;
+        $statement = Database::connection()->prepare('UPDATE ' . $this->table . ' SET ' . $assignments . ', updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $statement->execute($payload);
+
+        flash_set('crud.success', '__ENTITY__ updated.');
+        redirect(config('backoffice.path', '/admin') . '/__PLURAL__');
+    }
+
+    public function destroy(string $id): void
+    {
+        $this->guardCsrf();
+        $statement = Database::connection()->prepare('DELETE FROM ' . $this->table . ' WHERE id = :id');
+        $statement->execute(['id' => (int) $id]);
+
+        flash_set('crud.success', '__ENTITY__ deleted.');
+        redirect(config('backoffice.path', '/admin') . '/__PLURAL__');
+    }
+
+    private function findRecord(int $id): ?array
+    {
+        $statement = Database::connection()->prepare('SELECT * FROM ' . $this->table . ' WHERE id = :id LIMIT 1');
+        $statement->execute(['id' => $id]);
+        $record = $statement->fetch();
+
+        return is_array($record) ? $record : null;
+    }
+
+    private function payloadFromRequest(): array
+    {
+        $payload = [];
+        $errors = [];
+
+        foreach ($this->fields as $field => $definition) {
+            $meta = $this->fieldMeta((string) $definition);
+            $value = $_POST[$field] ?? null;
+
+            if ($meta['type'] === 'boolean') {
+                $payload[$field] = ((string) $value === '1') ? 1 : 0;
+                continue;
+            }
+
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+
+            if ($meta['required'] && ($value === null || $value === '')) {
+                $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is required.';
+                continue;
+            }
+
+            if ($value === '') {
+                $payload[$field] = null;
+                continue;
+            }
+
+            $payload[$field] = match ($meta['type']) {
+                'integer' => filter_var($value, FILTER_VALIDATE_INT) !== false ? (int) $value : null,
+                'float' => is_numeric($value) ? (float) $value : null,
+                default => $value,
+            };
+        }
+
+        return [$payload, $errors];
+    }
+
+    private function fieldMeta(string $definition): array
+    {
+        $parts = array_values(array_filter(explode(':', strtolower($definition)), static fn (string $part): bool => $part !== ''));
+        $type = $parts[0] ?? 'string';
+
+        if ($type === 'int') {
+            $type = 'integer';
+        }
+
+        if ($type === 'bool') {
+            $type = 'boolean';
+        }
+
+        return [
+            'type' => $type,
+            'required' => in_array('required', $parts, true),
+            'options' => $type === 'select' && isset($parts[1]) ? array_filter(array_map('trim', explode(',', $parts[1]))) : [],
+        ];
     }
 }
 PHP;
@@ -330,57 +479,131 @@ PHP;
 <section class="panel-card p-8">
     <header class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-            <p class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-sky-300">Generated CRUD</p>
-            <h1 class="text-3xl font-black tracking-tight text-white"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
+            <p class="eyebrow">Generated CRUD</p>
+            <h1 class="display-title text-3xl"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
         </div>
-        <a class="button-primary" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/{{plural}}/create">Add new</a>
+        <a class="button-primary" href="<?= htmlspecialchars((string) $basePath, ENT_QUOTES, 'UTF-8') ?>/create">Add new</a>
     </header>
 
-    <div class="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/50">
-        <table class="min-w-full divide-y divide-white/10 text-left text-sm text-slate-200">
-            <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-slate-400">
+    <?php if (!empty($success)): ?>
+        <div class="notice notice--success mb-6"><?= htmlspecialchars((string) $success, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+    <?php if (!empty($error)): ?>
+        <div class="notice notice--error mb-6"><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <div class="surface-card overflow-x-auto p-1">
+        <table class="min-w-full text-left text-sm">
+            <thead class="meta-copy uppercase">
             <tr>
                 <?php foreach ($fields as $field => $type): ?>
                     <th class="px-4 py-3"><?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?></th>
                 <?php endforeach; ?>
+                <th class="px-4 py-3 text-right">Actions</th>
             </tr>
             </thead>
-            <tbody class="divide-y divide-white/5">
+            <tbody class="divide-y">
             <?php foreach ($records as $record): ?>
-                <tr class="hover:bg-white/5">
+                <tr>
                     <?php foreach ($fields as $field => $type): ?>
                         <td class="px-4 py-3"><?= htmlspecialchars((string) ($record[$field] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                     <?php endforeach; ?>
+                    <td class="px-4 py-3">
+                        <div class="flex justify-end gap-2">
+                            <a class="button-secondary" href="<?= htmlspecialchars((string) $basePath, ENT_QUOTES, 'UTF-8') ?>/<?= (int) $record['id'] ?>/edit">Edit</a>
+                            <form method="post" action="<?= htmlspecialchars((string) $basePath, ENT_QUOTES, 'UTF-8') ?>/<?= (int) $record['id'] ?>/delete" onsubmit="return confirm('Delete this record?')">
+                                <?= csrf_field() ?>
+                                <button class="button-secondary" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
             <?php endforeach; ?>
+            <?php if ($records === []): ?>
+                <tr><td class="muted-copy px-4 py-6" colspan="<?= count($fields) + 1 ?>">No records yet.</td></tr>
+            <?php endif; ?>
             </tbody>
         </table>
     </div>
+
+    <?php $lastPage = max(1, (int) ceil(((int) $total) / ((int) $perPage))); ?>
+    <footer class="mt-6 flex items-center justify-between gap-4">
+        <p class="meta-copy">Page <?= (int) $page ?> / <?= (int) $lastPage ?> - <?= (int) $total ?> records</p>
+        <div class="flex gap-2">
+            <?php if ((int) $page > 1): ?>
+                <a class="button-secondary" href="<?= htmlspecialchars((string) $basePath, ENT_QUOTES, 'UTF-8') ?>?page=<?= (int) $page - 1 ?>">Previous</a>
+            <?php endif; ?>
+            <?php if ((int) $page < $lastPage): ?>
+                <a class="button-secondary" href="<?= htmlspecialchars((string) $basePath, ENT_QUOTES, 'UTF-8') ?>?page=<?= (int) $page + 1 ?>">Next</a>
+            <?php endif; ?>
+        </div>
+    </footer>
 </section>
 VIEW;
 
-        $create = <<<'VIEW'
+        $form = <<<'VIEW'
 <section class="panel-card p-8">
     <header class="mb-8">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-sky-300">Generated CRUD</p>
-        <h1 class="text-3xl font-black tracking-tight text-white">Create <?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
+        <p class="eyebrow">Generated CRUD</p>
+        <h1 class="display-title text-3xl"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
     </header>
 
-    <form class="space-y-5" method="post" action="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/{{plural}}">
+    <?php if (!empty($error)): ?>
+        <div class="notice notice--error mb-6"><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <?php
+    $fieldMeta = static function (string $definition): array {
+        $parts = array_values(array_filter(explode(':', strtolower($definition)), static fn (string $part): bool => $part !== ''));
+        $type = $parts[0] ?? 'string';
+        if ($type === 'int') { $type = 'integer'; }
+        if ($type === 'bool') { $type = 'boolean'; }
+        return [
+            'type' => $type,
+            'required' => in_array('required', $parts, true),
+            'options' => $type === 'select' && isset($parts[1]) ? array_filter(array_map('trim', explode(',', $parts[1]))) : [],
+        ];
+    };
+    ?>
+
+    <form class="space-y-5" method="post" action="<?= htmlspecialchars((string) $action, ENT_QUOTES, 'UTF-8') ?>">
         <?= csrf_field() ?>
         <?php foreach ($fields as $field => $type): ?>
+            <?php $meta = $fieldMeta((string) $type); $value = (string) ($record[$field] ?? ''); ?>
             <label class="block space-y-2">
-                <span class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300"><?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?></span>
-                <input class="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none ring-0 transition placeholder:text-slate-500 focus:border-sky-400" type="text" name="<?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?>">
+                <span class="field-label"><?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?><?= $meta['required'] ? ' *' : '' ?></span>
+                <?php if ($meta['type'] === 'text'): ?>
+                    <textarea class="field-input min-h-36" name="<?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?>" <?= $meta['required'] ? 'required' : '' ?>><?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?></textarea>
+                <?php elseif ($meta['type'] === 'boolean'): ?>
+                    <input type="hidden" name="<?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?>" value="0">
+                    <input class="h-5 w-5" type="checkbox" name="<?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?>" value="1" <?= !empty($record[$field]) ? 'checked' : '' ?>>
+                <?php elseif ($meta['type'] === 'select'): ?>
+                    <select class="field-input" name="<?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?>" <?= $meta['required'] ? 'required' : '' ?>>
+                        <option value="">Choose...</option>
+                        <?php foreach ($meta['options'] as $option): ?>
+                            <option value="<?= htmlspecialchars((string) $option, ENT_QUOTES, 'UTF-8') ?>" <?= $value === (string) $option ? 'selected' : '' ?>><?= htmlspecialchars((string) $option, ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <?php $inputType = match ($meta['type']) { 'integer', 'float' => 'number', 'date' => 'date', 'datetime' => 'datetime-local', default => 'text' }; ?>
+                    <input class="field-input" type="<?= $inputType ?>" name="<?= htmlspecialchars($field, ENT_QUOTES, 'UTF-8') ?>" value="<?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?>" <?= $meta['type'] === 'float' ? 'step="any"' : '' ?> <?= $meta['required'] ? 'required' : '' ?>>
+                <?php endif; ?>
             </label>
         <?php endforeach; ?>
-        <button class="button-primary" type="submit">Save</button>
+        <div class="flex flex-wrap gap-3">
+            <button class="button-primary" type="submit"><?= htmlspecialchars((string) $submitLabel, ENT_QUOTES, 'UTF-8') ?></button>
+            <a class="button-secondary" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/{{plural}}">Cancel</a>
+        </div>
     </form>
 </section>
 VIEW;
 
         file_put_contents($viewDir . '/index.php', str_replace('{{plural}}', $plural, $index));
-        file_put_contents($viewDir . '/create.php', str_replace('{{plural}}', $plural, $create));
+        file_put_contents($viewDir . '/form.php', str_replace('{{plural}}', $plural, $form));
+
+        if (!is_file($migrationPath)) {
+            file_put_contents($migrationPath, $this->migrationTemplate($plural, $fields));
+        }
 
         $routeChunk = <<<'PHP'
 
@@ -394,6 +617,17 @@ VIEW;
     \{{namespace}}\Middleware\AuthenticateMiddleware::class,
     \{{namespace}}\Middleware\VerifyCsrfMiddleware::class,
 ], [new \{{namespace}}\Controllers\Admin\__CONTROLLER_CLASS__(), 'store']));
+\Flight::route('GET ' . config('backoffice.path', '/admin') . '/__PLURAL__/@id/edit', middleware([
+    \{{namespace}}\Middleware\AuthenticateMiddleware::class,
+], [new \{{namespace}}\Controllers\Admin\__CONTROLLER_CLASS__(), 'edit']));
+\Flight::route('POST ' . config('backoffice.path', '/admin') . '/__PLURAL__/@id', middleware([
+    \{{namespace}}\Middleware\AuthenticateMiddleware::class,
+    \{{namespace}}\Middleware\VerifyCsrfMiddleware::class,
+], [new \{{namespace}}\Controllers\Admin\__CONTROLLER_CLASS__(), 'update']));
+\Flight::route('POST ' . config('backoffice.path', '/admin') . '/__PLURAL__/@id/delete', middleware([
+    \{{namespace}}\Middleware\AuthenticateMiddleware::class,
+    \{{namespace}}\Middleware\VerifyCsrfMiddleware::class,
+], [new \{{namespace}}\Controllers\Admin\__CONTROLLER_CLASS__(), 'destroy']));
 PHP;
 
         $routeChunk = strtr($routeChunk, [
@@ -409,8 +643,101 @@ PHP;
         return [
             'controller' => $controllerPath,
             'views' => $viewDir,
+            'migration' => $migrationPath,
             'routes' => $routesPath,
         ];
+    }
+
+    private function normalizeResource(string $resource): string
+    {
+        $resource = strtolower(trim($resource));
+        $resource = preg_replace('/[^a-z0-9_]+/', '_', $resource) ?: 'records';
+        $resource = trim($resource, '_');
+
+        return $resource !== '' ? $resource : 'records';
+    }
+
+    private function normalizeFields(array $fields): array
+    {
+        $normalized = [];
+        foreach ($fields as $field => $type) {
+            $name = strtolower((string) $field);
+            $name = preg_replace('/[^a-z0-9_]+/', '_', $name) ?: '';
+            $name = trim($name, '_');
+
+            if ($name === '' || $name === 'id') {
+                continue;
+            }
+
+            $normalized[$name] = $this->normalizeType((string) $type);
+        }
+
+        return $normalized !== [] ? $normalized : ['title' => 'string:required', 'content' => 'text'];
+    }
+
+    private function normalizeType(string $type): string
+    {
+        $type = strtolower(trim($type));
+        $base = explode(':', $type, 2)[0] ?: 'string';
+        $aliases = ['int' => 'integer', 'bool' => 'boolean', 'decimal' => 'float'];
+        $base = $aliases[$base] ?? $base;
+        $allowed = ['string', 'text', 'integer', 'float', 'boolean', 'date', 'datetime', 'select'];
+
+        return in_array($base, $allowed, true) ? $type : 'string';
+    }
+
+    private function migrationTemplate(string $table, array $fields): string
+    {
+        $columns = [];
+        foreach ($fields as $field => $type) {
+            $columns[] = '    ' . $field . ' ' . $this->sqlType((string) $type);
+        }
+
+        $columnsSql = implode(",\n", $columns);
+        $className = str_replace(' ', '', ucwords(str_replace('_', ' ', 'create_' . $table . '_table')));
+
+        return <<<PHP
+<?php
+
+declare(strict_types=1);
+
+return new class {
+    public function name(): string
+    {
+        return '{$className}';
+    }
+
+    public function up(\PDO \$pdo): void
+    {
+        \$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS {$table} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+{$columnsSql},
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+SQL);
+    }
+
+    public function down(\PDO \$pdo): void
+    {
+        \$pdo->exec('DROP TABLE IF EXISTS {$table}');
+    }
+};
+PHP;
+    }
+
+    private function sqlType(string $type): string
+    {
+        $base = explode(':', strtolower($type), 2)[0] ?: 'string';
+
+        return match ($base) {
+            'text' => 'TEXT',
+            'integer', 'int', 'boolean', 'bool' => 'INTEGER',
+            'float', 'decimal' => 'REAL',
+            'date', 'datetime' => 'TEXT',
+            default => 'TEXT',
+        };
     }
 }
 CRUD_TEMPLATE;
