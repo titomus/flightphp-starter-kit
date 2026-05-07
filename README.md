@@ -1,6 +1,6 @@
 # Flight PHP Starter Kit
 
-Installer configurable pour generer une application Flight PHP complete: MVC, auth, backoffice, queue, Stripe, OAuth, SEO, email, Vite, Tailwind et design presets.
+Installer configurable pour generer une application Flight PHP complete: MVC, auth, backoffice, queue, Stripe, OAuth, SEO, email, Vite, Tailwind, HTMX, AlpineJS et design presets.
 
 Le but du projet est de partir d'un seul dossier d'installation, d'ajuster `installer/config.php`, puis de generer une base d'application directement exploitable sans recoller les memes fondations a chaque nouveau projet.
 
@@ -107,7 +107,7 @@ Sections disponibles:
 | `social_auth` | Google OAuth et GitHub OAuth |
 | `design` | Preset visuel et overrides de tokens |
 | `composer` | Auto-install Composer |
-| `frontend` | Vite, Tailwind, build dir, dev server |
+| `frontend` | Vite, Tailwind, HTMX, AlpineJS, build dir, dev server |
 | `features` | Activation frontend/backoffice |
 | `installer` | Auto-suppression apres succes |
 
@@ -225,7 +225,7 @@ Packages ajoutes selon la config au moment de lancer l'installer:
 
 Le `composer.json` genere contient aussi une section `suggest` pour rappeler les packages a installer si une feature est activee plus tard via `.env`.
 
-### Frontend Vite/Tailwind
+### Frontend Vite/Tailwind/HTMX/AlpineJS
 
 - `vite.config.js` genere avec `publicDir: false`
 - Build vers `public/`
@@ -233,7 +233,23 @@ Le `composer.json` genere contient aussi une section `suggest` pour rappeler les
 - Manifest dans `public/manifest.json`
 - `vite_tags()` injecte des URLs propres: `/assets/app-xxxx.css` et `/assets/app-xxxx.js`
 - Tailwind 3 avec `resources/css/app.css`
-- `resources/js/app.js` importe le CSS
+- HTMX et AlpineJS activables via `installer/config.php`
+- `resources/js/app.js` importe le CSS et expose HTMX/Alpine si actives
+
+Configuration par defaut:
+
+```php
+'frontend' => [
+  'vite' => true,
+  'tailwind' => true,
+  'htmx' => true,
+  'alpine' => true,
+  'build_dir' => '',
+  'dev_server' => '',
+],
+```
+
+Quand `htmx` est actif, `package.json` inclut `htmx.org` et l'objet est expose sur `window.htmx`. Quand `alpine` est actif, `package.json` inclut `alpinejs`, expose `window.Alpine` et lance `Alpine.start()`.
 
 ### Design system
 
@@ -399,6 +415,8 @@ Le fichier `.env.example` genere couvre:
 - `GITHUB_*`
 - `FRONTEND_VITE`
 - `FRONTEND_TAILWIND`
+- `FRONTEND_HTMX`
+- `FRONTEND_ALPINE`
 - `VITE_DEV_SERVER`
 - `VITE_BUILD_DIR`
 
@@ -410,6 +428,8 @@ DB_DRIVER=sqlite
 DB_DATABASE=app/storage/database.sqlite
 FRONTEND_VITE=true
 FRONTEND_TAILWIND=true
+FRONTEND_HTMX=true
+FRONTEND_ALPINE=true
 VITE_BUILD_DIR=
 ```
 

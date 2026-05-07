@@ -115,9 +115,20 @@ Pour une preview plus professionnelle:
 - 500 en mode production
 - rendu JSON pour `/api/*`
 
+### 11. Ajouter des composants HTMX/Alpine prets a l'emploi
+
+HTMX et AlpineJS sont maintenant installables via `frontend.htmx` et `frontend.alpine`. Pour rendre l'option tout de suite utile, on pourrait ajouter quelques composants generes:
+
+- recherche backoffice avec `hx-get` et debounce
+- pagination CRUD partielle sans reload complet
+- modales Alpine pour confirmation/suppression
+- dropdowns et menus utilisateur Alpine
+- toast notifications Alpine pour les flash messages
+- exemples de formulaires inline HTMX avec retour serveur partiel
+
 ## Priorite basse
 
-### 11. Ajouter un mode CI pour l'installer
+### 12. Ajouter un mode CI pour l'installer
 
 Un flag `--ci` pourrait impliquer:
 
@@ -126,7 +137,7 @@ Un flag `--ci` pourrait impliquer:
 - codes de retour stricts
 - pas d'auto-suppression sauf demande explicite
 
-### 12. Ajouter une validation de configuration avant generation
+### 13. Ajouter une validation de configuration avant generation
 
 Avant d'ecrire les fichiers, verifier:
 
@@ -136,7 +147,7 @@ Avant d'ecrire les fichiers, verifier:
 - price IDs manquants si Stripe active
 - callbacks OAuth coherents avec `base_url`
 
-### 13. Ajouter une sortie JSON pour `--dry-run`
+### 14. Ajouter une sortie JSON pour `--dry-run`
 
 Utile pour debug ou interface graphique:
 
@@ -144,7 +155,7 @@ Utile pour debug ou interface graphique:
 php install-flight-starter.php --dry-run --json
 ```
 
-### 14. Ajouter un petit changelog
+### 15. Ajouter un petit changelog
 
 Un `CHANGELOG.md` aiderait a suivre les decisions deja prises:
 

@@ -255,6 +255,8 @@ return [
     'frontend' => [
         'vite' => true,
         'tailwind' => true,
+        'htmx' => true,
+        'alpine' => true,
         'build_dir' => '',
         'dev_server' => '',
     ],

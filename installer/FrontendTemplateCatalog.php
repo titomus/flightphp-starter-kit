@@ -18,7 +18,7 @@ final class FrontendTemplateCatalog
             'app/config/design.php' => $this->templateDesignConfig($vars),
             $assetKeepPath => '',
             'resources/css/app.css' => $this->templateViteCss($vars),
-            'resources/js/app.js' => $this->templateViteJs(),
+            'resources/js/app.js' => $this->templateViteJs($vars),
         ];
     }
 
@@ -32,6 +32,8 @@ declare(strict_types=1);
 return [
     'enabled' => filter_var(env('FRONTEND_VITE', '{$vars['frontend_vite_enabled']}'), FILTER_VALIDATE_BOOL),
     'tailwind' => filter_var(env('FRONTEND_TAILWIND', '{$vars['frontend_tailwind_enabled']}'), FILTER_VALIDATE_BOOL),
+    'htmx' => filter_var(env('FRONTEND_HTMX', '{$vars['frontend_htmx_enabled']}'), FILTER_VALIDATE_BOOL),
+    'alpine' => filter_var(env('FRONTEND_ALPINE', '{$vars['frontend_alpine_enabled']}'), FILTER_VALIDATE_BOOL),
     'build_dir' => env('VITE_BUILD_DIR', '{$vars['frontend_build_dir']}'),
     'dev_server' => env('VITE_DEV_SERVER', '{$vars['frontend_dev_server']}'),
 ];
@@ -61,6 +63,15 @@ PHP;
             $devDependencies['autoprefixer'] = '^10.4.20';
         }
 
+        $dependencies = [];
+        if ($vars['frontend_htmx_enabled'] === 'true') {
+            $dependencies['htmx.org'] = '^2.0.4';
+        }
+
+        if ($vars['frontend_alpine_enabled'] === 'true') {
+            $dependencies['alpinejs'] = '^3.14.8';
+        }
+
         $package = [
             'name' => strtolower(str_replace(' ', '-', $vars['project_name'])),
             'private' => true,
@@ -72,6 +83,10 @@ PHP;
             ],
             'devDependencies' => $devDependencies,
         ];
+
+        if ($dependencies !== []) {
+            $package['dependencies'] = $dependencies;
+        }
 
         return json_encode($package, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
@@ -348,10 +363,27 @@ JS;
 CSS;
     }
 
-    private function templateViteJs(): string
+    private function templateViteJs(array $vars): string
     {
-        return <<<'JS'
+        $imports = '';
+        $boot = '';
+
+        if ($vars['frontend_htmx_enabled'] === 'true') {
+            $imports .= "import htmx from 'htmx.org';\n";
+            $boot .= "window.htmx = htmx;\n";
+        }
+
+        if ($vars['frontend_alpine_enabled'] === 'true') {
+            $imports .= "import Alpine from 'alpinejs';\n";
+            $boot .= "window.Alpine = Alpine;\nAlpine.start();\n";
+        }
+
+        return <<<JS
 import '../css/app.css';
+{$imports}
+{$boot}
+document.documentElement.dataset.htmx = '{$vars['frontend_htmx_enabled']}';
+document.documentElement.dataset.alpine = '{$vars['frontend_alpine_enabled']}';
 
 document.documentElement.classList.add('js-ready');
 JS;

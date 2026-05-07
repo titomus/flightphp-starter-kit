@@ -183,6 +183,8 @@ GITHUB_SCOPES={$vars['github_login_scopes']}
 
 FRONTEND_VITE={$vars['frontend_vite_enabled']}
 FRONTEND_TAILWIND={$vars['frontend_tailwind_enabled']}
+FRONTEND_HTMX={$vars['frontend_htmx_enabled']}
+FRONTEND_ALPINE={$vars['frontend_alpine_enabled']}
 VITE_DEV_SERVER={$vars['frontend_dev_server']}
 VITE_BUILD_DIR={$vars['frontend_build_dir']}
 TEXT;

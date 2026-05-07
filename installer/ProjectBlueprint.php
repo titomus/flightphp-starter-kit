@@ -167,6 +167,8 @@ final class ProjectBlueprint
             'sqlite_database' => (string) $this->config['database']['database'],
             'frontend_vite_enabled' => !empty($this->config['frontend']['vite']) ? 'true' : 'false',
             'frontend_tailwind_enabled' => !empty($this->config['frontend']['tailwind']) ? 'true' : 'false',
+            'frontend_htmx_enabled' => !empty($this->config['frontend']['htmx']) ? 'true' : 'false',
+            'frontend_alpine_enabled' => !empty($this->config['frontend']['alpine']) ? 'true' : 'false',
             'frontend_build_dir' => (string) ($this->config['frontend']['build_dir'] ?? 'build'),
             'frontend_dev_server' => (string) ($this->config['frontend']['dev_server'] ?? ''),
             'backoffice_enabled' => $this->features->backoffice ? 'true' : 'false',
