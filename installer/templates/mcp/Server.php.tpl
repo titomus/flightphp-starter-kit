@@ -130,8 +130,16 @@ final class Server
             ]);
         } catch (\Throwable $exception) {
             error_log('MCP tool error: ' . $exception->getMessage());
+            // Privileged development tools need actionable validation failures.
+            // Do not expose raw unexpected exceptions or internal paths.
+            $message = 'Tool execution failed';
+            if (str_starts_with((string) $params['name'], 'dev_')
+                && ($exception instanceof \\InvalidArgumentException
+                    || $exception instanceof \\RuntimeException)) {
+                $message = substr($exception->getMessage(), 0, 300);
+            }
             return $this->success($id, [
-                'content' => [['type' => 'text', 'text' => 'Tool execution failed']],
+                'content' => [['type' => 'text', 'text' => $message]],
                 'isError' => true,
             ]);
         }
