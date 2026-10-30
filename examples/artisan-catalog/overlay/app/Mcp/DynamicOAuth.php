@@ -28,7 +28,7 @@ final class DynamicOAuth
 
     public static function resource(): string
     {
-        return self::baseUrl() . '/mcp.php';
+        return self::baseUrl() . '/mcp';
     }
 
     public function register(array $metadata): array
