@@ -68,7 +68,16 @@ final class ProjectBlueprint
         }
 
         if ($this->features->mcp) {
-            $directories[] = 'app/Mcp';
+            array_push($directories,
+                'app/Mcp',
+                'app/Controllers/Business',
+                'app/Services/Business',
+                'app/Models/Business',
+                'app/Views/business',
+                'app/storage/atelier',
+                'app/storage/atelier/drafts',
+                'app/storage/atelier/releases'
+            );
         }
 
         return array_map(fn (string $path): string => $this->joinPath($this->targetDir, $path), $directories);
