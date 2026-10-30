@@ -206,4 +206,91 @@ try {
     verify(true, 'Refresh tokens are single-use');
 }
 
+
+// Code workspace: explicit OAuth permission, narrow paths, staged update,
+// non-destructive backups, conflict guards and emergency rollback.
+$mcpPrincipal = ['admin_id' => 1, 'scopes' => [
+    'catalog:read', 'catalog:write', 'app:evolve', 'app:deploy',
+]];
+$tools = require $root . '/app/Mcp/tools.php';
+verify(isset($tools['dev_list_files'], $tools['dev_read_file'], $tools['dev_prepare_patch'],
+    $tools['dev_validate_patch'], $tools['dev_deploy'], $tools['dev_rollback'], $tools['dev_history']),
+    'All seven GitHub-free code lifecycle MCP tools require app:deploy scope');
+$workspace = new \App\Mcp\CodeWorkspace($root);
+$files = $workspace->listFiles();
+verify(count($files) >= 5, 'Code workspace enumerates business allowlisted files');
+$original = $workspace->readFile('app/Mcp/business_tools.php');
+verify(strlen($original['sha256']) === 64, 'Editable file read returns SHA-256 for optimistic lock');
+try {
+    $workspace->readFile('app/Mcp/DynamicOAuth.php');
+    throw new RuntimeException('Sensitive OAuth code was exposed!');
+} catch (\InvalidArgumentException) {
+    verify(true, 'OAuth and MCP core code cannot be edited via code workspace');
+}
+$extension = 'app/Services/Extensions/AtelierSmokeExample.php';
+$extensionSource = "<?php\n\nnamespace App\\Services\\Extensions;\nfinal class AtelierSmokeExample { public static function ping(): bool { return true; } }\n";
+$draft = $workspace->prepare(1, 'Test versioned change and rollback without GitHub', [
+    ['path' => 'app/Mcp/business_tools.php', 'expected_sha256' => $original['sha256'],
+        'content' => $original['content'] . "\n// Atelier integration smoke test\n"],
+    ['path' => $extension, 'expected_sha256' => '', 'content' => $extensionSource],
+]);
+verify($draft['status'] === 'prepared' && count($draft['files']) === 2,
+    'Code workspace stages existing and new business files');
+verify(hash_file('sha256', $root . '/app/Mcp/business_tools.php') === $original['sha256'],
+    'Preparing code does not modify active business files');
+$validation = $workspace->validate(1, $draft['id']);
+verify($validation['valid'] === true && count($validation['checks']) === 2,
+    'Prepared source syntax and original hashes validate');
+try {
+    $workspace->deploy(1, $draft['id'], false);
+    throw new RuntimeException('Deployment without confirmation was accepted!');
+} catch (\InvalidArgumentException) {
+    verify(true, 'Deployment requires explicit confirmation');
+}
+$release = $workspace->deploy(1, $draft['id'], true);
+verify($release['status'] === 'deployed' && is_file($root . '/' . $extension),
+    'Confirmed deployment installs business extension and saves snapshot');
+verify(count($workspace->history(1)) >= 1,
+    'Deployment is visible in version history');
+try {
+    $workspace->rollback(1, $draft['id'], false);
+    throw new RuntimeException('Rollback without confirmation was accepted!');
+} catch (\InvalidArgumentException) {
+    verify(true, 'Rollback requires explicit confirmation');
+}
+$restored = $workspace->rollback(1, $draft['id'], true);
+verify($restored['status'] === 'rolled_back'
+    && !file_exists($root . '/' . $extension)
+    && hash_file('sha256', $root . '/app/Mcp/business_tools.php') === $original['sha256'],
+    'Rollback restores original file byte-for-byte and removes newly created file');
+try {
+    $workspace->prepare(1, 'Reject invalid file path in code manager', [
+        ['path' => 'app/Mcp/HttpEndpoint.php', 'expected_sha256' => '',
+            'content' => "<?php echo 'unsafe';"],
+    ]);
+    throw new RuntimeException('Protected code was accepted!');
+} catch (\InvalidArgumentException) {
+    verify(true, 'Code workspace rejects protected application infrastructure');
+}
+try {
+    $workspace->prepare(1, 'Reject syntactically invalid source code', [
+        ['path' => 'app/Mcp/business_tools.php', 'expected_sha256' => $original['sha256'],
+            'content' => "<?php function broken( {"],
+    ]);
+    throw new RuntimeException('Invalid PHP syntax was accepted!');
+} catch (\InvalidArgumentException) {
+    verify(true, 'Code workspace refuses malformed PHP before deployment');
+}
+try {
+    $workspace->prepare(1, 'Reject stale file fingerprints for safe edits', [
+        ['path' => 'app/Mcp/business_tools.php', 'expected_sha256' => str_repeat('a', 64),
+            'content' => "<?php return [];"],
+    ]);
+    throw new RuntimeException('Stale SHA256 fingerprint was accepted!');
+} catch (\InvalidArgumentException) {
+    verify(true, 'Code workspace prevents overwriting unexpected file changes');
+}
+
+echo "Atelier versioned file update, strict permissions and rollback: PASS\n";
+
 echo "Artisan SaaS DCR, MCP business writes and evolution-request smoke tests: PASS\n";
