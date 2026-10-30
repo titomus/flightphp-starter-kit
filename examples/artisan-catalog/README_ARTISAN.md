@@ -32,20 +32,49 @@ Se connecter sur http://localhost:8000/admin/login et ouvrir http://localhost:80
 - MCP : `catalog_list`, `catalog_preview_import`, `catalog_commit_import`.
 - Meme service PHP `App\Services\CatalogService` pour le web et le MCP.
 
-## MCP : mode developpement uniquement
+## MCP privé : connexion ChatGPT en lecture seule
 
-Ajouter dans `.env` :
+Le MCP utilise désormais OAuth (code d'autorisation avec PKCE S256) et **non plus**
+le jeton partagé `MCP_BEARER_TOKEN`. Les paramètres suivants doivent être définis
+dans `.env` pour l'activer :
 
-```env
-MCP_BEARER_TOKEN=REMPLACER_PAR_UN_SECRET_ALEATOIRE_DE_64_CARACTERES_HEXA
-MCP_ALLOW_WRITES=false
+```dotenv
+MCP_OAUTH_CLIENT_ID=identifiant-client-prive
+MCP_OAUTH_CLIENT_SECRET=secret-client-prive-de-64-caracteres-ou-plus
+MCP_OAUTH_REDIRECT_URI=https://URL-EXACTE-DE-RAPPEL-CHATGPT
 ```
 
-Generer un jeton avec `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`. L'endpoint de demonstration est `POST /mcp.php`, avec en-tete `Authorization: Bearer ...`.
+Les valeurs doivent être configurées sur le serveur, jamais dans le dépôt Git.
+Pour obtenir un identifiant et un secret aléatoires, exécuter deux fois
+`php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"` dans le Terminal cPanel.
+Ne communiquer ces secrets à personne et ne pas les afficher dans des captures.
 
-Les outils de lecture et de previsualisation sont disponibles avec le jeton. L'outil d'import n'est activable qu'avec `MCP_ALLOW_WRITES=true` et exige `confirmed=true`. Cette double protection **ne remplace pas** une authentification utilisateur et des permissions par tenant ; ne l'activer que dans un environnement de test isole.
+**Le callback doit être l'URL exacte indiquée par le formulaire de connexion OAuth
+du plugin ChatGPT**, pas une adresse devinée. L'application refuse les redirections
+différentes de celle enregistrée.
 
-L'implementation actuelle est un prototype de transport JSON-RPC MCP. Il faudra parfaire le support Streamable HTTP et le modele OAuth pour connecter ce logiciel a des clients MCP externes en production.
+Les métadonnées publiques ne contiennent aucun secret :
+- `/.well-known/oauth-authorization-server` : découverte OAuth.
+- `/.well-known/oauth-protected-resource/mcp.php` : ressource protégée.
+- `/oauth/authorize` : écran d'autorisation réservée à un admin connecté.
+- `/oauth/token` : échange de jeton et renouvellement.
+- `/mcp.php` : endpoint MCP Streamable HTTP (réponses JSON et HTTP 405 pour GET SSE).
+
+Dans ChatGPT : Plugins > ajouter un serveur MCP personnalisé, URL
+`https://test-github.zootz.fr/mcp.php`, authentification OAuth avec
+les identifiants statiques ci-dessus, puis effectuer la connexion. Avant de
+valider, se connecter à `/admin/login` dans le navigateur et autoriser
+explicitement l'accès sur l'écran OAuth.
+
+**Outils MCP disponibles :** `app_info`, `catalog_list`,
+`catalog_preview_import`. Aucun outil d'écriture MCP n'est publié :
+l'importation réelle se fait uniquement via le BackOffice avec confirmation.
+Les jetons d'accès expirent au bout d'une heure et les jetons de renouvellement
+sont révoqués après rotation, avec durée maximale de 30 jours.
+
+La démo reste mono-tenant. Avant tout usage sur plusieurs comptes clients,
+il faudra ajouter un véritable fournisseur d'identité multi-tenant, une
+séparation des ressources, des scopes et des limites d'utilisation.
 
 ## Architecture
 
