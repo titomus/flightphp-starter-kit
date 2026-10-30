@@ -26,7 +26,7 @@ final class McpOAuthController
             'token_endpoint_auth_methods_supported' => ['none'],
             'code_challenge_methods_supported' => ['S256'],
             'scopes_supported' => [
-                DynamicOAuth::READ, DynamicOAuth::WRITE, DynamicOAuth::EVOLVE,
+                DynamicOAuth::READ, DynamicOAuth::WRITE, DynamicOAuth::EVOLVE, DynamicOAuth::DEPLOY,
             ],
         ]);
     }
@@ -37,7 +37,7 @@ final class McpOAuthController
             'resource' => DynamicOAuth::resource(),
             'authorization_servers' => [DynamicOAuth::baseUrl()],
             'scopes_supported' => [
-                DynamicOAuth::READ, DynamicOAuth::WRITE, DynamicOAuth::EVOLVE,
+                DynamicOAuth::READ, DynamicOAuth::WRITE, DynamicOAuth::EVOLVE, DynamicOAuth::DEPLOY,
             ],
             'bearer_methods_supported' => ['header'],
         ]);
@@ -152,6 +152,9 @@ final class McpOAuthController
         if (in_array(DynamicOAuth::EVOLVE, $scopes, true)) {
             $rights[] = 'envoyer des demandes d’évolution de l’application';
         }
+        if (in_array(DynamicOAuth::DEPLOY, $scopes, true)) {
+            $rights[] = 'préparer et déployer du code PHP métier (accès privilégié, risque élevé)';
+        }
         header('Content-Type: text/html; charset=utf-8');
         echo '<!doctype html><html lang="fr"><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width"><title>Autorisation ChatGPT</title>'
@@ -159,8 +162,8 @@ final class McpOAuthController
             . '<h1>Connecter Atelier Catalogue à ChatGPT</h1><p>Vous autorisez ChatGPT à :</p><ul><li>'
             . implode('</li><li>', array_map(static fn (string $right): string =>
                 htmlspecialchars($right, ENT_QUOTES, 'UTF-8'), $rights))
-            . '</li></ul><p>La modification du code du serveur et le déploiement '
-            . 'ne sont pas autorisés par cette connexion.</p>'
+            . '</li></ul><p>Le coeur OAuth et MCP reste protégé ; le déploiement de code métier '
+            . 'exige la permission app:deploy et une confirmation.</p>'
             . '<form method="post" action="/oauth/authorize">'
             . $fields . '<input type="hidden" name="_csrf" value="'
             . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">'
