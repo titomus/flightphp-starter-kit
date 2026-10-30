@@ -72,7 +72,7 @@ foreach ($wire->result->tools as $toolDefinition) {
         && is_object($toolDefinition->inputSchema->properties),
         'MCP ' . $toolDefinition->name . ' has JSON object inputSchema and properties');
 }
-$synthetic = new \\App\\Mcp\\Server([
+$synthetic = new \App\Mcp\Server([
     'empty_schema' => [
         'description' => 'Regression for empty JSON Schema properties',
         'inputSchema' => ['type' => 'object', 'properties' => [], 'required' => []],
