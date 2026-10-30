@@ -25,3 +25,47 @@ jobs:
           php -l install-flight-starter.php
       - name: Generate generic client application and test MCP lifecycle
         run: php tests/v2-smoke.php
+      - name: Install complete generated FlightPHP app
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v2-install"
+          cp -R installer "$RUNNER_TEMP/v2-install/"
+          cp install-flight-starter.php "$RUNNER_TEMP/v2-install/"
+          cd "$RUNNER_TEMP/v2-install"
+          php -r '
+            $path = "installer/config.php";
+            $config = require $path;
+            $config["target_dir"] = getcwd();
+            $config["project_name"] = "Customer Two";
+            $config["base_url"] = "http://127.0.0.1:8766";
+            $config["composer"]["auto_install"] = false;
+            $config["npm"]["auto_build"] = false;
+            $config["installer"]["cleanup_on_success"] = false;
+            $config["backoffice"]["default_email"] = "owner@example.test";
+            $config["backoffice"]["default_password"] = "TEST_ONLY_STRONG_UNIQUE_PASSWORD";
+            file_put_contents($path, "<?php\nreturn " . var_export($config, true) . ";\n");
+          '
+          php install-flight-starter.php --no-composer --keep-installer
+          composer install --no-interaction --no-progress --prefer-dist
+          php app/Console/console.php migrate
+          php app/Console/console.php seed
+          find app -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+      - name: Verify OAuth/MCP HTTP transport on generated app
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/v2-install"
+          cat > .env <<'ENV'
+          APP_NAME="Customer Two"
+          APP_URL=http://127.0.0.1:8766
+          APP_DEBUG=false
+          ATELIER_CODE_UPDATES_ENABLED=false
+          ENV
+          php -S 127.0.0.1:8766 -t public public/router.php > "$RUNNER_TEMP/v2-http.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true; cat "$RUNNER_TEMP/v2-http.log" || true' EXIT
+          sleep 2
+          curl -fsS http://127.0.0.1:8766/api/health | jq -e '.status == "ok"'
+          curl -fsS http://127.0.0.1:8766/.well-known/oauth-authorization-server | jq -e '.registration_endpoint == "http://127.0.0.1:8766/oauth/register" and (.scopes_supported | index("app:deploy"))'
+          curl -fsS http://127.0.0.1:8766/.well-known/oauth-protected-resource/mcp | jq -e '.resource == "http://127.0.0.1:8766/mcp"'
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json, text/event-stream' -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' http://127.0.0.1:8766/mcp)
+          test "$CODE" = "401"
