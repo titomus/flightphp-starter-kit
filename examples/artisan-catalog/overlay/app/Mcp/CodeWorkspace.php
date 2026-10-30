@@ -282,6 +282,33 @@ final class CodeWorkspace
         });
     }
 
+    /**
+     * Emergency SSH/cPanel recovery if a PHP process died during a multi-file
+     * deployment. Intentionally NOT available from MCP or web requests.
+     * Restores every original file even when only some target files changed.
+     */
+    public function emergencyRecover(int $adminId, string $id): array
+    {
+        if (PHP_SAPI !== 'cli') {
+            throw new RuntimeException('Emergency recovery is CLI-only.');
+        }
+        $this->assertAdmin($adminId);
+        return $this->locked(function () use ($adminId, $id): array {
+            $release = $this->load('releases', $id, $adminId);
+            if (!in_array($release['status'], ['deploying', 'deployed', 'failed_restored'], true)) {
+                throw new InvalidArgumentException('Release is not eligible for emergency recovery.');
+            }
+            foreach (array_reverse($release['files']) as $entry) {
+                $this->restore($entry);
+            }
+            $release['status'] = 'emergency_rolled_back';
+            $release['rolled_back_at'] = gmdate('c');
+            $this->writeJson($this->storage . '/releases/' . $id . '.json', $release);
+            return ['id' => $id, 'status' => 'emergency_rolled_back',
+                'paths' => array_column($release['files'], 'path')];
+        });
+    }
+
     public function history(int $adminId, int $limit = 20): array
     {
         $this->assertAdmin($adminId);
