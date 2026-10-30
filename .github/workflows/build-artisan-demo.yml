@@ -34,6 +34,13 @@ jobs:
           composer install --no-interaction --no-progress --prefer-dist
           php app/Console/console.php migrate
 
+      - name: Build frontend assets
+        run: |
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          npm install --no-audit --no-fund
+          npm run build
+          test -f public/manifest.json
+
       - name: Lint generated PHP
         run: |
           find "$RUNNER_TEMP/atelier-catalogue/app" "$RUNNER_TEMP/atelier-catalogue/public" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
@@ -53,6 +60,9 @@ jobs:
           HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/catalog)
           test "$HTTP_CODE" = "302"
           echo "Unauthorized /catalog correctly redirects: HTTP $HTTP_CODE"
+
+      - name: Remove frontend dependency cache from artifact
+        run: rm -rf "$RUNNER_TEMP/atelier-catalogue/node_modules"
 
       - name: Upload generated SaaS as artifact
         uses: actions/upload-artifact@v4
