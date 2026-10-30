@@ -104,7 +104,7 @@ PHP;
     if ($creationStart === false) {
         upgradeFail('Existing workspace new-file restriction not found.');
     }
-    $creationEnd = strpos(") {\n", $creationStart);
+    $creationEnd = strpos($old, ") {\n", $creationStart);
     if ($creationEnd === false || $creationEnd - $creationStart > 250) {
         upgradeFail('Could not safely locate existing creation restriction.');
     }
