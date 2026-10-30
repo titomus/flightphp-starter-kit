@@ -61,6 +61,7 @@ if ($exitCode !== 0) {
 }
 
 $copy(__DIR__ . '/overlay/app', $output . '/app');
+$copy(__DIR__ . '/overlay/public', $output . '/public');
 $route = file_get_contents(__DIR__ . '/routes.php');
 if ($route === false || file_put_contents($output . '/app/routes/web.php', $route, FILE_APPEND) === false) {
     throw new RuntimeException('Cannot register demo web routes');
