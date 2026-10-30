@@ -63,6 +63,47 @@ $mcpPrincipal = ['admin_id' => 1, 'scopes' => ['catalog:read', 'catalog:write', 
 $tools = require $root . '/app/Mcp/tools.php';
 $server = new \App\Mcp\Server($tools);
 $listed = $server->handle('{"jsonrpc":"2.0","id":4,"method":"tools/list"}');
+// Assert JSON wire types, not just PHP arrays, because MCP discovery
+// rejects [] where JSON Schema requires {}.
+$wire = json_decode(json_encode($listed, JSON_THROW_ON_ERROR), false, 512, JSON_THROW_ON_ERROR);
+verify(count($wire->result->tools) === 7, 'All seven authorized MCP tools are listed');
+foreach ($wire->result->tools as $toolDefinition) {
+    verify(is_object($toolDefinition->inputSchema)
+        && is_object($toolDefinition->inputSchema->properties),
+        'MCP ' . $toolDefinition->name . ' has JSON object inputSchema and properties');
+}
+$synthetic = new \\App\\Mcp\\Server([
+    'empty_schema' => [
+        'description' => 'Regression for empty JSON Schema properties',
+        'inputSchema' => ['type' => 'object', 'properties' => [], 'required' => []],
+        'handler' => static fn (array $args): array => $args,
+    ],
+    'nested_empty' => [
+        'description' => 'Regression for nested JSON Schema objects',
+        'inputSchema' => [
+            'type' => 'object', 'properties' => [
+                'child' => ['type' => 'object', 'properties' => []],
+                'rows' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => []]],
+            ],
+            'required' => ['child'],
+        ],
+        'handler' => static fn (array $args): array => $args,
+    ],
+]);
+$syntheticWire = json_decode(json_encode(
+    $synthetic->handle('{"jsonrpc":"2.0","id":88,"method":"tools/list"}'),
+    JSON_THROW_ON_ERROR
+), false, 512, JSON_THROW_ON_ERROR);
+$emptySchema = $syntheticWire->result->tools[0]->inputSchema;
+verify(is_object($emptySchema->properties) && is_array($emptySchema->required)
+    && count($emptySchema->required) === 0,
+    'Empty properties encode as {}, while empty required encodes as []');
+$nested = $syntheticWire->result->tools[1]->inputSchema;
+verify(is_object($nested->properties->child->properties)
+    && is_object($nested->properties->rows->items->properties)
+    && is_array($nested->required),
+    'Nested empty properties remain {}, and required stays a JSON array');
+
 $names = array_column($listed['result']['tools'], 'name');
 verify(in_array('catalog_commit_import', $names, true), 'Catalog writes available only with write scope');
 verify(in_array('app_request_change', $names, true), 'Evolution request tool available with app:evolve scope');
