@@ -261,7 +261,9 @@ return [
         'dev_server' => '',
     ],
     'mcp' => [
-        'enabled' => false,
+        // Built-in OAuth 2.1 (PKCE + dynamic client registration).
+        // Requires the administrator backoffice.
+        'enabled' => true,
     ],
     'features' => [
         'backoffice' => true,
