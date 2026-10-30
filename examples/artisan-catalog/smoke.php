@@ -162,12 +162,14 @@ $authRequest = [
     'response_type' => 'code',
     'code_challenge_method' => 'S256',
     'code_challenge' => $challenge,
-    'scope' => 'catalog:read catalog:write app:evolve',
+    'scope' => 'catalog:read catalog:write app:evolve app:deploy',
     'state' => 'random-nonce',
     'resource' => \App\Mcp\DynamicOAuth::resource(),
 ];
 $validated = $oauth->verifyAuthorizationRequest($authRequest);
 verify(is_array($validated), 'DCR authorization validates registered callback, scopes and PKCE');
+verify(str_contains($validated['scope'] ?? '', 'app:deploy'), 'OAuth authorization accepts privileged app:deploy scope');
+verify($oauth->verifyAuthorizationRequest(array_replace($authRequest, ['scope' => 'root:admin'])) === null, 'OAuth rejects unknown privileges');
 verify($oauth->verifyAuthorizationRequest(array_replace($authRequest, ['redirect_uri' => 'https://attacker.example/callback'])) === null, 'OAuth rejects redirect substitution');
 
 $code = $oauth->authorize(1, $validated);
@@ -188,6 +190,7 @@ $token = $oauth->exchange([
 ]);
 $principal = $oauth->principal($token['access_token']);
 verify(is_array($principal) && in_array('app:evolve', $principal['scopes'], true), 'OAuth token grants approved business and evolution scopes');
+verify(in_array('app:deploy', $principal['scopes'], true), 'OAuth token grants app:deploy only when requested and consented');
 try {
     $oauth->exchange([
         'client_id' => $client['client_id'], 'redirect_uri' => $redirect,
