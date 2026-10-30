@@ -127,7 +127,8 @@ final class McpOAuthController
             $parameters['state'] = $validated['state'];
             header('Location: ' . $validated['redirect_uri'] . '?'
                 . http_build_query($parameters, '', '&', PHP_QUERY_RFC3986), true, 303);
-            return;
+            // Preserve the explicit 303 and avoid FlightPHP rewriting it.
+            exit;
         }
 
         $fields = '';
@@ -211,5 +212,9 @@ final class McpOAuthController
         header('Content-Type: application/json; charset=utf-8');
         http_response_code($code);
         echo json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        // FlightPHP can normalize the response status after a route callback
+        // returns. OAuth status codes (201/400/401/503) must reach clients
+        // unchanged, so finish the HTTP response here.
+        exit;
     }
 }
