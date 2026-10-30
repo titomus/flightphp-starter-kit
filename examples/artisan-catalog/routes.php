@@ -19,3 +19,13 @@
     new \App\Middleware\AuthenticateMiddleware('admin'),
     \App\Middleware\VerifyCsrfMiddleware::class,
 ], [new \App\Controllers\CatalogController(), 'cancel']));
+
+
+// OAuth 2.1-style authorization code with PKCE for read-only private MCP access.
+// These endpoints do not expose the business catalog without authorization.
+\Flight::route('GET /.well-known/oauth-authorization-server', [new \App\Controllers\McpOAuthController(), 'metadata']);
+\Flight::route('GET /.well-known/oauth-protected-resource', [new \App\Controllers\McpOAuthController(), 'protectedResource']);
+\Flight::route('GET /.well-known/oauth-protected-resource/mcp.php', [new \App\Controllers\McpOAuthController(), 'protectedResource']);
+\Flight::route('GET /oauth/authorize', [new \App\Controllers\McpOAuthController(), 'authorize']);
+\Flight::route('POST /oauth/authorize', [new \App\Controllers\McpOAuthController(), 'authorize']);
+\Flight::route('POST /oauth/token', [new \App\Controllers\McpOAuthController(), 'token']);
