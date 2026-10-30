@@ -57,11 +57,11 @@ app/
     atelier/
       drafts/           # projets de patch
       releases/         # snapshots de déploiement
-resources/
-  css/business.css
-  js/business.js
 public/
   index.php
+  assets/
+    business.css       # modifiable via MCP sans build Vite
+    business.js
 ```
 
 ## Architecture MVC et discipline de développement
@@ -73,7 +73,7 @@ public/
   duplication de règles commerciales entre UI et IA.
 - Les migrations se font via le Migrator du framework, jamais avec un
   `CREATE TABLE` dans un constructeur de service.
-- Les CSS/JS restent dans `resources/`, avec intégration au pipeline frontend.
+- Le framework conserve Vite pour ses assets de base ; les CSS/JS métier sont isolés dans `public/assets/business.css` et `business.js` pour permettre leur déploiement sans compilation.
 - Les fichiers secrets, OAuth, cœur FlightPHP, migration runner et moteur de
   déploiement sont protégés par une liste d'autorisation stricte.
 - Le moteur ne constitue pas une sandbox : un développeur autorisé à publier du
@@ -112,11 +112,12 @@ même si un ancien jeton OAuth est toujours valide.
 
 - [x] Retour d'expérience réel : atelier Catalogue avec OAuth, MCP et rollback.
 - [x] Branche isolée de développement de la v2.
-- [ ] Génération générique avec OAuth PKCE, DCR, MCP sur route Flight.
-- [ ] Outils métier génériques et extension `business_tools.php`.
-- [ ] Atelier de fichiers autonome, isolé des composants sensibles.
-- [ ] Migrations gérées hors des services, routes métier et assets séparés.
-- [ ] Tests d'installation à blanc, OAuth, permissions, patch, déploiement et rollback.
+- [x] Génération générique avec OAuth PKCE, DCR, MCP sur route Flight.
+- [x] Registre métier générique et extension `business_tools.php` (à enrichir pour chaque client).
+- [x] Atelier de fichiers autonome, isolé des composants sensibles (version bêta).
+- [x] Routes métier distinctes, fichiers statiques métier séparés et migrations du framework disponibles.
+- [ ] Étendre l'atelier aux migrations avec prévisualisation et sauvegarde des données.
+- [x] Tests CI de génération, installation indépendante, découverte OAuth, permissions, patch et rollback.
 - [ ] Vérification de configuration cPanel/HTTPS, sécurité et sauvegarde SQLite.
 - [ ] Publication de la v2 sur `main` **uniquement après validation**.
 
