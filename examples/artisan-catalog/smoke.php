@@ -108,6 +108,7 @@ $names = array_column($listed['result']['tools'], 'name');
 verify(in_array('catalog_commit_import', $names, true), 'Catalog writes available only with write scope');
 verify(in_array('app_request_change', $names, true), 'Evolution request tool available with app:evolve scope');
 verify(!in_array('write_file', $names, true) && !in_array('run_shell', $names, true), 'No generic file or command execution tools');
+verify(!isset($tools['dev_deploy']), 'Existing app:evolve users cannot deploy PHP without app:deploy scope');
 
 $importNoConsent = $server->handle(json_encode([
     'jsonrpc' => '2.0', 'id' => 5, 'method' => 'tools/call',
@@ -290,6 +291,20 @@ try {
 } catch (\InvalidArgumentException) {
     verify(true, 'Code workspace prevents overwriting unexpected file changes');
 }
+
+// Crash-recovery path: cannot rely on the MCP being operational.
+// A fully deployed release can also be restored by the CLI-only fallback.
+$originalRecovery = $workspace->readFile('app/Mcp/business_tools.php');
+$emergencyDraft = $workspace->prepare(1, 'Exercise independent emergency code rollback', [
+    ['path' => 'app/Mcp/business_tools.php',
+        'expected_sha256' => $originalRecovery['sha256'],
+        'content' => $originalRecovery['content'] . "\n// emergency recovery smoke test\n"],
+]);
+$workspace->deploy(1, $emergencyDraft['id'], true);
+$emergency = $workspace->emergencyRecover(1, $emergencyDraft['id']);
+verify($emergency['status'] === 'emergency_rolled_back'
+    && hash_file('sha256', $root . '/app/Mcp/business_tools.php') === $originalRecovery['sha256'],
+    'Standalone CLI recovery restores exact original even when MCP fails');
 
 echo "Atelier versioned file update, strict permissions and rollback: PASS\n";
 
