@@ -77,6 +77,7 @@ if (!is_string($body) || strlen($body) > 1048576) {
     exit;
 }
 
+$mcpPrincipal = $principal;
 $tools = require dirname(__DIR__) . '/app/Mcp/tools.php';
 $server = new \App\Mcp\Server($tools);
 $response = $server->handle($body);
