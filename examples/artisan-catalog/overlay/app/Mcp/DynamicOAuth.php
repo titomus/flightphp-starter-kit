@@ -20,6 +20,7 @@ final class DynamicOAuth
     public const READ = 'catalog:read';
     public const WRITE = 'catalog:write';
     public const EVOLVE = 'app:evolve';
+    public const DEPLOY = 'app:deploy';
 
     public static function baseUrl(): string
     {
