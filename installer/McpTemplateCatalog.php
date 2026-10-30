@@ -26,8 +26,8 @@ final class McpTemplateCatalog
             'app/routes/business.php' => 'business_routes.php.tpl',
             'app/Database/Migrations/20261030020000_create_mcp_dcr_tables.php' => '20261030020000_create_mcp_dcr_tables.php.tpl',
             'app/Database/Migrations/20261030030000_create_application_change_requests.php' => '20261030030000_create_application_change_requests.php.tpl',
-            'resources/css/business.css' => 'business.css.tpl',
-            'resources/js/business.js' => 'business.js.tpl',
+            'public/assets/business.css' => 'business.css.tpl',
+            'public/assets/business.js' => 'business.js.tpl',
         ];
 
         $files = [];
