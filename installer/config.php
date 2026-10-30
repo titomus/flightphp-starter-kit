@@ -260,6 +260,9 @@ return [
         'build_dir' => '',
         'dev_server' => '',
     ],
+    'mcp' => [
+        'enabled' => false,
+    ],
     'features' => [
         'backoffice' => true,
         'frontend' => true,

@@ -18,6 +18,34 @@ Le but du projet est de partir d'un seul dossier d'installation, d'ajuster `inst
 - Router PHP integre via `public/router.php` pour servir les fichiers statiques et router les URLs dynamiques comme `/sitemap.xml`
 - Design system base sur presets et CSS variables
 
+## MCP optionnel (experimental)
+
+Le starter kit peut generer un point d'entree MCP HTTP et un registre explicite
+d'outils metier. La logique metier reste dans les services PHP partages par
+l'interface web, l'API et le MCP. L'import CSV n'est qu'un exemple possible.
+
+Dans `installer/config.php`, activer :
+
+```php
+'mcp' => [
+    'enabled' => true,
+],
+```
+
+L'installateur genere `app/Mcp/Server.php`, `app/Mcp/tools.php` et
+`public/mcp.php`. Le MCP est desactive par defaut.
+
+Definir `MCP_BEARER_TOKEN` avec un secret aleatoire d'au moins 32 caracteres
+avant tout essai via HTTP. Utiliser HTTPS. Le prototype prend en charge les
+principales methodes JSON-RPC MCP mais **pas encore** une implementation
+production complete (OAuth, permissions multi-tenant, transport Streamable HTTP
+integral et tests d'interoperabilite).
+
+Test automatisé : `php tests/mcp-smoke.php`.
+
+Voir [docs/MCP_NATIVE.md](docs/MCP_NATIVE.md) pour le raccord des services
+metier et la separation entre MCP utilisateur et agent de developpement.
+
 ## Prerequis
 
 - PHP 8.1 ou plus recent

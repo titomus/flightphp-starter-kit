@@ -90,6 +90,7 @@ final class FlightStarterInstaller
         echo 'Namespace: ' . $this->config['namespace'] . PHP_EOL;
         echo 'BackOffice: ' . ($this->features->backoffice ? 'enabled' : 'disabled') . PHP_EOL;
         echo 'Frontend: ' . ($this->features->frontend ? 'enabled' : 'disabled') . PHP_EOL;
+        echo 'MCP: ' . ($this->features->mcp ? 'enabled' : 'disabled') . PHP_EOL;
         echo 'Mode: ' . ($this->options->dryRun ? 'dry-run' : 'write') . PHP_EOL;
         echo PHP_EOL;
     }
