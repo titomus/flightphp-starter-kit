@@ -87,6 +87,7 @@ TEXT;
 
     public function templateEnvExample(array $vars): string
     {
+        $mcpEnv = ($vars['mcp_enabled'] ?? 'false') === 'true' ? "\nMCP_BEARER_TOKEN=\n" : '';
         return <<<TEXT
 APP_NAME="{$vars['project_name']}"
 APP_ENV=local
@@ -186,7 +187,7 @@ FRONTEND_TAILWIND={$vars['frontend_tailwind_enabled']}
 FRONTEND_HTMX={$vars['frontend_htmx_enabled']}
 FRONTEND_ALPINE={$vars['frontend_alpine_enabled']}
 VITE_DEV_SERVER={$vars['frontend_dev_server']}
-VITE_BUILD_DIR={$vars['frontend_build_dir']}
+VITE_BUILD_DIR={$vars['frontend_build_dir']}{$mcpEnv}
 TEXT;
     }
 
@@ -203,6 +204,10 @@ TEXT;
 
         if ($features->backoffice) {
             $stack[] = '- BackOffice CRUD generator';
+        }
+
+        if ($features->mcp) {
+            $stack[] = '- Optional MCP JSON-RPC HTTP endpoint';
         }
 
         if ($features->frontend) {
@@ -240,6 +245,11 @@ TEXT;
             '- Frontend auth routes with Google/GitHub login, Stripe pricing/checkout/webhook endpoints, billing history tables, account page, sitemap and robots endpoints',
         ];
 
+        if ($features->mcp) {
+            $featureLines[] = '- MCP endpoint: POST /mcp.php (Bearer token required)';
+            $featureLines[] = '- Register business tools in app/Mcp/tools.php';
+        }
+
         if ($frontendBlock !== '') {
             $featureLines[] = rtrim($frontendBlock);
         }
@@ -251,6 +261,10 @@ TEXT;
                 }
             }
         }
+
+        $mcpNotes = $features->mcp
+            ? "\n## MCP\n\nSet MCP_BEARER_TOKEN in .env to a random secret of at least 32 characters. Use HTTPS in production.\nThe generated endpoint is a minimal JSON-response transport, not a production-hardened OAuth/tenant-aware MCP implementation.\nExpose approved business service methods via app/Mcp/tools.php; never expose arbitrary SQL, shell or repository access.\n"
+            : '';
 
         $stackText = implode("\n", $stack);
         $structureText = implode("\n", $structureLines);
@@ -302,6 +316,7 @@ npm run build
 ## Features
 
 $featureText
+$mcpNotes
 ## Development notes
 
 - The queue uses the database table `{$vars['queue_table']}`.
