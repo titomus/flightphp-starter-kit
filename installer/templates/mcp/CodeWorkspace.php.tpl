@@ -25,8 +25,8 @@ final class CodeWorkspace
     private const PATHS = [
         'app/Mcp/business_tools.php',
         'app/routes/business.php',
-        'resources/css/business.css',
-        'resources/js/business.js',
+        'public/assets/business.css',
+        'public/assets/business.js',
     ];
 
     private string $root;
