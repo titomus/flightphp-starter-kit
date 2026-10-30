@@ -15,6 +15,54 @@ il exécute le véritable installateur FlightPHP, installe Composer, construit
 les fichiers frontend avec npm, migre SQLite et teste le catalogue + MCP.
 L'archive est publiée dans les artifacts de GitHub Actions.
 
+## Solution immédiate sans jeton API : installation via cPanel
+
+Si l'outil de création des jetons d'API de cPanel est inaccessible, **ne pas
+utiliser le workflow SSH** : il attend un jeton API pour autoriser l'IP éphémère
+du runner GitHub. FTPS chiffré exige également une exception d'IP sur o2switch.
+
+Le workflow `Build artisan mini SaaS` fournit une archive prête à extraire :
+
+1. Ouvrir **Actions > Build artisan mini SaaS**, sélectionner la dernière
+   exécution réussie et télécharger l'artifact `atelier-catalogue-generated`.
+2. Dans **cPanel > Gestionnaire de fichiers**, aller dans
+   `/home/titomus/test-github.zootz.fr`. Vérifier que le dossier ne contient
+   rien à conserver avant de continuer. **Ne pas supprimer d'autres fichiers.**
+3. Téléverser l'archive ZIP et utiliser **Extract** dans ce même répertoire.
+   Si l'extraction crée un sous-dossier supplémentaire, déplacer uniquement
+   son contenu dans `test-github.zootz.fr` pour obtenir
+   `test-github.zootz.fr/app/`, `vendor/`, `public/`, etc.
+   La racine web configurée reste `test-github.zootz.fr/public`.
+4. Dans le Gestionnaire de fichiers, activer **Afficher les fichiers masqués**.
+   Vérifier que `public/.htaccess` et `.env.example` sont bien présents.
+5. Copier `.env.example` en `.env` (hors du dossier `public`) et configurer :
+   - `APP_URL=https://test-github.zootz.fr`
+   - `APP_ENV=production`, `APP_DEBUG=false`
+   - `ADMIN_EMAIL=<adresse privée>`
+   - `ADMIN_PASSWORD=<mot de passe fort, jamais publié dans GitHub>`
+   - `MCP_BEARER_TOKEN=` vide, `MCP_ALLOW_WRITES=false` pour ce premier essai.
+   Conserver `DB_DATABASE=app/storage/database.sqlite` pour SQLite.
+6. Ouvrir **cPanel > Terminal** et exécuter :
+   ```bash
+   cd /home/titomus/test-github.zootz.fr
+   php -v
+   php -m | grep -Ei 'pdo_sqlite|mbstring'
+   php app/Console/console.php migrate
+   php app/Console/console.php seed
+   ```
+7. Vérifier `https://test-github.zootz.fr/api/health` puis
+   `https://test-github.zootz.fr/admin/login`. Se connecter et ouvrir
+   `/catalog` pour tester le CSV d'exemple.
+
+L'archive générée contient les dépendances Composer et les assets frontend,
+mais **pas la base SQLite temporaire issue des tests GitHub**, ni de fichier
+`.env` privé. Les fichiers cachés nécessaires sont inclus.
+
+Ce déploiement manuel évite d'avoir à publier des mots de passe serveur
+dans GitHub. Il sert de premier lancement ; nous pourrons ensuite mettre
+en place un déploiement automatique dès que la méthode d'authentification
+cPanel sera disponible ou qu'une alternative sécurisée sera choisie.
+
 ## Avant le premier déploiement
 
 Créer **cinq secrets** dans le dépôt GitHub, via
