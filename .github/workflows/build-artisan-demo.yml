@@ -49,17 +49,36 @@ jobs:
       - name: Functional tests for CSV + MCP
         run: php examples/artisan-catalog/smoke.php "$RUNNER_TEMP/atelier-catalogue"
 
-      - name: HTTP smoke test
+      - name: HTTP and OAuth discovery smoke tests
         run: |
+          set -euo pipefail
           cd "$RUNNER_TEMP/atelier-catalogue"
+          cat > .env <<'TEST_ENV'
+          APP_NAME="Atelier Catalogue"
+          APP_URL=http://127.0.0.1:8765
+          APP_DEBUG=false
+          MCP_OAUTH_CLIENT_ID=mcp-test-client
+          MCP_OAUTH_CLIENT_SECRET=testing-only-no-production-credential-123456789
+          MCP_OAUTH_REDIRECT_URI=https://example.test/oauth/callback
+          TEST_ENV
           php -S 127.0.0.1:8765 -t public public/router.php > "$RUNNER_TEMP/artisan-server.log" 2>&1 &
           SERVER_PID=$!
-          trap 'kill $SERVER_PID || true' EXIT
+          trap 'kill "$SERVER_PID" || true; rm -f .env' EXIT
           sleep 2
           curl --fail --silent --show-error http://127.0.0.1:8765/api/health | grep '"status"'
           HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/catalog)
           test "$HTTP_CODE" = "302"
-          echo "Unauthorized /catalog correctly redirects: HTTP $HTTP_CODE"
+          curl -fsS http://127.0.0.1:8765/.well-known/oauth-authorization-server | jq -e '.code_challenge_methods_supported | index("S256")'
+          curl -fsS http://127.0.0.1:8765/.well-known/oauth-protected-resource/mcp.php | jq -e '.resource == "http://127.0.0.1:8765/mcp.php"'
+          NO_TOKEN_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' \
+            http://127.0.0.1:8765/mcp.php)
+          test "$NO_TOKEN_CODE" = "401"
+          GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/mcp.php)
+          test "$GET_CODE" = "405"
+          echo "Web routing, OAuth discovery, unauthenticated MCP rejection: OK"
 
       - name: Prepare clean cPanel deployment package
         run: |
