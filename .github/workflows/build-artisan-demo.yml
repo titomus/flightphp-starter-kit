@@ -70,7 +70,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/catalog)
           test "$HTTP_CODE" = "302"
           curl -fsS http://127.0.0.1:8765/.well-known/oauth-authorization-server | jq -e '.registration_endpoint == "http://127.0.0.1:8765/oauth/register" and (.scopes_supported | index("app:evolve"))'
-          curl -fsS http://127.0.0.1:8765/.well-known/oauth-protected-resource/mcp.php | jq -e '.resource == "http://127.0.0.1:8765/mcp.php"'
+          curl -fsS http://127.0.0.1:8765/.well-known/oauth-protected-resource/mcp | jq -e '.resource == "http://127.0.0.1:8765/mcp"'
           DCR_RESPONSE=$(curl --fail --silent --show-error -X POST \
             -H 'Content-Type: application/json' \
             -d '{"redirect_uris":["https://chatgpt.com/connector/oauth/ci-smoke"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}' \
@@ -97,10 +97,11 @@ jobs:
             -H 'Accept: application/json, text/event-stream' \
             -H 'Content-Type: application/json' \
             -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' \
-            http://127.0.0.1:8765/mcp.php)
+            http://127.0.0.1:8765/mcp)
           test "$NO_TOKEN_CODE" = "401"
-          GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/mcp.php)
+          GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/mcp)
           test "$GET_CODE" = "405"
+          test -f app/Mcp/HttpEndpoint.php
           echo "Web routing, OAuth discovery, unauthenticated MCP rejection: OK"
 
       - name: Prepare clean cPanel deployment package
