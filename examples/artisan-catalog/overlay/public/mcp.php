@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Mcp\OAuthStore;
+use App\Mcp\DynamicOAuth;
 
 // Dedicated MCP entry point. This demonstration is deliberately read-only.
 define('APP_CONTEXT', 'mcp');
@@ -19,7 +19,7 @@ if ($method !== 'POST') {
     exit;
 }
 
-$expectedHost = parse_url(OAuthStore::baseUrl(), PHP_URL_HOST);
+$expectedHost = parse_url(DynamicOAuth::baseUrl(), PHP_URL_HOST);
 $host = explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''), 2)[0];
 if (!is_string($expectedHost) || !hash_equals($expectedHost, $host)) {
     http_response_code(403);
@@ -29,31 +29,24 @@ if (!is_string($expectedHost) || !hash_equals($expectedHost, $host)) {
 // Reject browser cross-origin calls. Server-to-server OAuth requests usually
 // have no Origin header, which is acceptable for authenticated MCP traffic.
 $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
-if ($origin !== '' && !hash_equals(OAuthStore::baseUrl(), rtrim($origin, '/'))) {
+if ($origin !== '' && !hash_equals(DynamicOAuth::baseUrl(), rtrim($origin, '/'))) {
     http_response_code(403);
-    exit;
-}
-
-if (!OAuthStore::enabled()) {
-    http_response_code(503);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['error' => 'MCP OAuth not configured'], JSON_THROW_ON_ERROR);
     exit;
 }
 
 $auth = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
 $bearer = str_starts_with($auth, 'Bearer ') ? substr($auth, 7) : '';
 try {
-    $principal = (new OAuthStore())->principal($bearer);
+    $principal = (new DynamicOAuth())->principal($bearer);
 } catch (\Throwable $exception) {
     error_log('MCP token validation failure: ' . $exception->getMessage());
     http_response_code(503);
     exit;
 }
 
-if (!is_array($principal) || $principal['scope'] !== OAuthStore::SCOPE) {
-    header('WWW-Authenticate: Bearer resource_metadata="' . OAuthStore::baseUrl()
-        . '/.well-known/oauth-protected-resource/mcp.php", scope="catalog:read"');
+if (!is_array($principal)) {
+    header('WWW-Authenticate: Bearer resource_metadata="' . DynamicOAuth::baseUrl()
+        . '/.well-known/oauth-protected-resource/mcp.php", scope="catalog:read catalog:write app:evolve"');
     http_response_code(401);
     exit;
 }
@@ -71,10 +64,10 @@ if (!str_contains($contentType, 'application/json')) {
 }
 
 $version = (string) ($_SERVER['HTTP_MCP_PROTOCOL_VERSION'] ?? '2025-03-26');
-if ($version !== '2025-03-26') {
+if (!in_array($version, ['2025-03-26', '2025-06-18', '2025-11-25'], true)) {
     http_response_code(400);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['error' => 'unsupported MCP protocol version', 'supported' => ['2025-03-26']], JSON_THROW_ON_ERROR);
+    echo json_encode(['error' => 'unsupported MCP protocol version', 'supported' => ['2025-03-26', '2025-06-18', '2025-11-25']], JSON_THROW_ON_ERROR);
     exit;
 }
 
