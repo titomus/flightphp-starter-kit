@@ -47,7 +47,7 @@ final class HttpEndpoint
 
         if (!is_array($principal)) {
             header('WWW-Authenticate: Bearer resource_metadata="' . DynamicOAuth::baseUrl()
-                . '/.well-known/oauth-protected-resource/mcp", scope="catalog:read catalog:write app:evolve"');
+                . '/.well-known/oauth-protected-resource/mcp", scope="catalog:read catalog:write app:evolve app:deploy"');
             http_response_code(401);
             exit;
         }
