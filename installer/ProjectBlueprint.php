@@ -76,7 +76,10 @@ final class ProjectBlueprint
                 'app/Views/business',
                 'app/storage/atelier',
                 'app/storage/atelier/drafts',
-                'app/storage/atelier/releases'
+                'app/storage/atelier/releases',
+                'resources',
+                'resources/css',
+                'resources/js'
             );
         }
 
