@@ -74,6 +74,7 @@ final class CoreProjectTemplateCatalog
 /app/storage/logs/*.log
 /app/storage/cache/*
 !/app/storage/cache/.gitkeep
+/app/storage/atelier/*
 /app/storage/queue/*
 !/app/storage/queue/.gitkeep
 /public/build/*
@@ -87,7 +88,9 @@ TEXT;
 
     public function templateEnvExample(array $vars): string
     {
-        $mcpEnv = ($vars['mcp_enabled'] ?? 'false') === 'true' ? "\nMCP_BEARER_TOKEN=\n" : '';
+        $mcpEnv = ($vars['mcp_enabled'] ?? 'false') === 'true'
+            ? "\n# Flight Starter Kit 2.0: privileged remote code changes are disabled by default.\nATELIER_CODE_UPDATES_ENABLED=false\n"
+            : '';
         return <<<TEXT
 APP_NAME="{$vars['project_name']}"
 APP_ENV=local
