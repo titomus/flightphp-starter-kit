@@ -1210,6 +1210,7 @@ PHP;
     <title><?= htmlspecialchars(seo()->title($seo ?? []), ENT_QUOTES, 'UTF-8') ?></title>
     <?= seo()->render($seo ?? []) ?>
     <?= vite_tags(['resources/js/app.js']) ?>
+    <?php if (is_file(public_path('assets/business.css'))): ?><link rel="stylesheet" href="/assets/business.css"><?php endif; ?>
 </head>
 <?php $design = config('design', []); $shellClass = !empty($design['layout']['fullscreen']) ? 'site-shell--full' : 'site-shell--contained'; ?>
 <body class="site-body">
