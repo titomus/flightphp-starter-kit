@@ -91,6 +91,12 @@ if (defined('APP_CONTEXT') && APP_CONTEXT === 'web') {
     require $basePath . '/app/routes/web.php';
     require $basePath . '/app/routes/api.php';
     require $basePath . '/app/routes/admin_generated.php';
+    if (is_file($basePath . '/app/routes/business.php')) {
+        require $basePath . '/app/routes/business.php';
+    }
+    if (is_file($basePath . '/app/routes/mcp.php')) {
+        require $basePath . '/app/routes/mcp.php';
+    }
 }
 PHP;
     }
