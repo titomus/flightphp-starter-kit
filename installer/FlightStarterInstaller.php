@@ -54,6 +54,13 @@ final class FlightStarterInstaller
         if ($this->features->mcp && !$this->features->backoffice) {
             throw new RuntimeException('MCP 2.0 requires the administrator backoffice; enable backoffice or disable MCP.');
         }
+        if ($this->features->mcp) {
+            $password = (string) ($this->config['backoffice']['default_password'] ?? '');
+            if (strlen($password) < 16 || in_array(strtolower($password), ['admin123', 'password12345678'], true)
+                || str_contains(strtoupper($password), 'CHANGE_ME')) {
+                throw new RuntimeException('MCP 2.0 requires a unique strong admin seed password (16+ characters) before installation.');
+            }
+        }
         $this->guardTargetDirectory();
 
         foreach ($this->blueprint->directories() as $directory) {
