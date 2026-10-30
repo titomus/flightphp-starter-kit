@@ -19,6 +19,7 @@ final class DynamicOAuth
 {
     public const READ = 'catalog:read';
     public const WRITE = 'catalog:write';
+    public const EVOLVE = 'app:evolve';
 
     public static function baseUrl(): string
     {
@@ -109,7 +110,7 @@ final class DynamicOAuth
         $scope = trim((string) ($request['scope'] ?? self::READ));
         $scopes = preg_split('/\s+/', $scope);
         if (!$scopes || $scopes === [] || count($scopes) !== count(array_unique($scopes))
-            || array_diff($scopes, [self::READ, self::WRITE]) !== []) {
+            || array_diff($scopes, [self::READ, self::WRITE, self::EVOLVE]) !== []) {
             return null;
         }
 
