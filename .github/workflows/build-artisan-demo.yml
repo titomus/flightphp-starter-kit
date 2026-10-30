@@ -33,6 +33,7 @@ jobs:
           cd "$RUNNER_TEMP/atelier-catalogue"
           composer install --no-interaction --no-progress --prefer-dist
           php app/Console/console.php migrate
+          php app/Console/console.php seed
 
       - name: Build frontend assets
         run: |
@@ -68,8 +69,13 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:8765/api/health | grep '"status"'
           HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/catalog)
           test "$HTTP_CODE" = "302"
-          curl -fsS http://127.0.0.1:8765/.well-known/oauth-authorization-server | jq -e '.code_challenge_methods_supported | index("S256")'
+          curl -fsS http://127.0.0.1:8765/.well-known/oauth-authorization-server | jq -e '.registration_endpoint == "http://127.0.0.1:8765/oauth/register" and (.scopes_supported | index("app:evolve"))'
           curl -fsS http://127.0.0.1:8765/.well-known/oauth-protected-resource/mcp.php | jq -e '.resource == "http://127.0.0.1:8765/mcp.php"'
+          DCR_RESPONSE=$(curl --fail --silent --show-error -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["https://chatgpt.com/connector/oauth/ci-smoke"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}' \
+            http://127.0.0.1:8765/oauth/register)
+          printf '%s' "$DCR_RESPONSE" | jq -e '.client_id and (.token_endpoint_auth_method == "none")'
           NO_TOKEN_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
             -H 'Accept: application/json, text/event-stream' \
             -H 'Content-Type: application/json' \
