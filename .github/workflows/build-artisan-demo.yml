@@ -1,0 +1,61 @@
+name: Build artisan mini SaaS
+
+on:
+  push:
+    branches: [demo/artisan-catalog]
+
+permissions:
+  contents: read
+
+jobs:
+  build-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout starter kit
+        uses: actions/checkout@v4
+
+      - name: Check PHP environment
+        run: |
+          php -v
+          php -m | grep -i pdo_sqlite
+          php -m | grep -i mbstring
+
+      - name: Generate standalone app from FlightPHP installer
+        run: |
+          php examples/artisan-catalog/build.php "$RUNNER_TEMP/atelier-catalogue"
+          test -f "$RUNNER_TEMP/atelier-catalogue/app/Mcp/Server.php"
+          test -f "$RUNNER_TEMP/atelier-catalogue/app/Services/CatalogService.php"
+
+      - name: Install PHP dependencies and migrate database
+        run: |
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          composer install --no-interaction --no-progress --prefer-dist
+          php app/Console/console.php migrate
+
+      - name: Lint generated PHP
+        run: |
+          find "$RUNNER_TEMP/atelier-catalogue/app" "$RUNNER_TEMP/atelier-catalogue/public" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          echo "Generated PHP syntax OK"
+
+      - name: Functional tests for CSV + MCP
+        run: php examples/artisan-catalog/smoke.php "$RUNNER_TEMP/atelier-catalogue"
+
+      - name: HTTP smoke test
+        run: |
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          php -S 127.0.0.1:8765 -t public public/router.php > "$RUNNER_TEMP/artisan-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          curl --fail --silent --show-error http://127.0.0.1:8765/api/health | grep '"status"'
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/catalog)
+          test "$HTTP_CODE" = "302"
+          echo "Unauthorized /catalog correctly redirects: HTTP $HTTP_CODE"
+
+      - name: Upload generated SaaS as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atelier-catalogue-generated
+          path: ${{ runner.temp }}/atelier-catalogue/
+          retention-days: 14
+          if-no-files-found: error
