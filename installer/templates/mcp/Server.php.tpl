@@ -58,10 +58,54 @@ final class Server
             $definitions[] = [
                 'name' => $name,
                 'description' => $tool['description'],
-                'inputSchema' => $tool['inputSchema'],
+                'inputSchema' => $this->normalizeSchema($tool['inputSchema']),
             ];
         }
         return $definitions;
+    }
+
+    /**
+     * JSON Schema objects must stay objects on the wire, even when empty.
+     * PHP's json_encode([]) becomes [] rather than {}, which some MCP
+     * clients reject during tool discovery. Preserve array-valued keywords
+     * (required, enum, allOf/anyOf/oneOf) as JSON arrays.
+     */
+    private function normalizeSchema(array|object $schema): object
+    {
+        $fields = (array) $schema;
+        if (isset($fields['properties'])) {
+            $properties = (array) $fields['properties'];
+            foreach ($properties as $name => $child) {
+                if (is_array($child) || is_object($child)) {
+                    $properties[$name] = $this->normalizeSchema($child);
+                }
+            }
+            $fields['properties'] = (object) $properties;
+        }
+        if (isset($fields['$defs'])) {
+            $definitions = (array) $fields['$defs'];
+            foreach ($definitions as $name => $child) {
+                if (is_array($child) || is_object($child)) {
+                    $definitions[$name] = $this->normalizeSchema($child);
+                }
+            }
+            $fields['$defs'] = (object) $definitions;
+        }
+        foreach (['items', 'additionalProperties', 'not', 'if', 'then', 'else'] as $key) {
+            if (isset($fields[$key]) && (is_array($fields[$key]) || is_object($fields[$key]))) {
+                $fields[$key] = $this->normalizeSchema($fields[$key]);
+            }
+        }
+        foreach (['allOf', 'anyOf', 'oneOf', 'prefixItems'] as $key) {
+            if (isset($fields[$key]) && is_array($fields[$key])) {
+                $fields[$key] = array_map(
+                    fn ($child) => is_array($child) || is_object($child)
+                        ? $this->normalizeSchema($child) : $child,
+                    $fields[$key]
+                );
+            }
+        }
+        return (object) $fields;
     }
 
     private function callTool(string|int|null $id, mixed $params): array
@@ -86,8 +130,16 @@ final class Server
             ]);
         } catch (\Throwable $exception) {
             error_log('MCP tool error: ' . $exception->getMessage());
+            // Privileged development tools need actionable validation failures.
+            // Do not expose raw unexpected exceptions or internal paths.
+            $message = 'Tool execution failed';
+            if (str_starts_with((string) $params['name'], 'dev_')
+                && ($exception instanceof \InvalidArgumentException
+                    || $exception instanceof \RuntimeException)) {
+                $message = substr($exception->getMessage(), 0, 300);
+            }
             return $this->success($id, [
-                'content' => [['type' => 'text', 'text' => 'Tool execution failed']],
+                'content' => [['type' => 'text', 'text' => $message]],
                 'isError' => true,
             ]);
         }

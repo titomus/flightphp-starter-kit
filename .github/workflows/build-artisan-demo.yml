@@ -1,0 +1,150 @@
+name: Build artisan mini SaaS
+
+on:
+  push:
+    branches: [demo/artisan-catalog]
+  pull_request:
+    branches: [feature/mcp-native]
+
+permissions:
+  contents: read
+
+jobs:
+  build-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout starter kit
+        uses: actions/checkout@v4
+
+      - name: Check PHP environment
+        run: |
+          php -v
+          php -m | grep -i pdo_sqlite
+          php -m | grep -i mbstring
+
+      - name: Generate standalone app from FlightPHP installer
+        run: |
+          php examples/artisan-catalog/build.php "$RUNNER_TEMP/atelier-catalogue"
+          test -f "$RUNNER_TEMP/atelier-catalogue/app/Mcp/Server.php"
+          test -f "$RUNNER_TEMP/atelier-catalogue/app/Services/CatalogService.php"
+
+      - name: Install PHP dependencies and migrate database
+        run: |
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          composer install --no-interaction --no-progress --prefer-dist
+          php app/Console/console.php migrate
+          php app/Console/console.php seed
+
+      - name: Build frontend assets
+        run: |
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          npm install --no-audit --no-fund
+          npm run build
+          test -f public/manifest.json
+
+      - name: Lint generated PHP
+        run: |
+          find "$RUNNER_TEMP/atelier-catalogue/app" "$RUNNER_TEMP/atelier-catalogue/public" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          echo "Generated PHP syntax OK"
+
+      - name: Functional tests for CSV + MCP
+        run: php examples/artisan-catalog/smoke.php "$RUNNER_TEMP/atelier-catalogue"
+
+      - name: HTTP and OAuth discovery smoke tests
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          cat > .env <<'TEST_ENV'
+          APP_NAME="Atelier Catalogue"
+          APP_URL=http://127.0.0.1:8765
+          APP_DEBUG=false
+          MCP_OAUTH_CLIENT_ID=mcp-test-client
+          MCP_OAUTH_CLIENT_SECRET=testing-only-no-production-credential-123456789
+          MCP_OAUTH_REDIRECT_URI=https://example.test/oauth/callback
+          TEST_ENV
+          php -S 127.0.0.1:8765 -t public public/router.php > "$RUNNER_TEMP/artisan-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true; rm -f .env' EXIT
+          sleep 2
+          curl --fail --silent --show-error http://127.0.0.1:8765/api/health | grep '"status"'
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/catalog)
+          test "$HTTP_CODE" = "302"
+          curl -fsS http://127.0.0.1:8765/.well-known/oauth-authorization-server | jq -e '.registration_endpoint == "http://127.0.0.1:8765/oauth/register" and (.scopes_supported | index("app:evolve"))'
+          curl -fsS http://127.0.0.1:8765/.well-known/oauth-protected-resource/mcp | jq -e '.resource == "http://127.0.0.1:8765/mcp"'
+          DCR_RESPONSE=$(curl --fail --silent --show-error -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["https://chatgpt.com/connector/oauth/ci-smoke"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}' \
+            http://127.0.0.1:8765/oauth/register)
+          printf '%s' "$DCR_RESPONSE" | jq -e '.client_id and (.token_endpoint_auth_method == "none")'
+          # Regression: an incomplete OAuth exchange MUST be HTTP 400, not
+          # a JSON error wrapped in HTTP 200 by the framework dispatcher.
+          INVALID_TOKEN_CODE=$(curl -s -o "$RUNNER_TEMP/invalid-oauth.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data 'grant_type=authorization_code' http://127.0.0.1:8765/oauth/token)
+          test "$INVALID_TOKEN_CODE" = "400"
+          jq -e '.error == "invalid_grant"' "$RUNNER_TEMP/invalid-oauth.json"
+          INVALID_REGISTER_CODE=$(curl -s -o "$RUNNER_TEMP/invalid-registration.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["https://attacker.example/callback"]}' http://127.0.0.1:8765/oauth/register)
+          test "$INVALID_REGISTER_CODE" = "400"
+          jq -e '.error == "invalid_client_metadata"' "$RUNNER_TEMP/invalid-registration.json"
+          VALID_REGISTER_CODE=$(curl -s -o "$RUNNER_TEMP/valid-registration.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["https://chatgpt.com/connector/oauth/ci-status-test"],"token_endpoint_auth_method":"none"}' http://127.0.0.1:8765/oauth/register)
+          test "$VALID_REGISTER_CODE" = "201"
+          jq -e '.client_id' "$RUNNER_TEMP/valid-registration.json"
+          NO_TOKEN_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' \
+            http://127.0.0.1:8765/mcp)
+          test "$NO_TOKEN_CODE" = "401"
+          GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/mcp)
+          test "$GET_CODE" = "405"
+          test -f app/Mcp/HttpEndpoint.php
+          echo "Web routing, OAuth discovery, unauthenticated MCP rejection: OK"
+
+      - name: Test protected-engine v2 upgrade and seven-file rollback
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/atelier-catalogue"
+          UPGRADE=examples/artisan-catalog/upgrade-workspace-v2.php
+          php "$UPGRADE" "$APP" --plan
+          php "$UPGRADE" "$APP" --apply | tee "$RUNNER_TEMP/v2-upgrade-apply.log"
+          php -l "$APP/app/Mcp/CodeWorkspace.php"
+          php examples/artisan-catalog/test-upgrade-v2.php "$APP"
+          ID=$(awk '/^SUCCESS \\| snapshot:/ {print $NF}' "$RUNNER_TEMP/v2-upgrade-apply.log")
+          test -n "$ID"
+          php "$UPGRADE" "$APP" --rollback "$ID"
+          php -l "$APP/app/Mcp/CodeWorkspace.php"
+          php "$UPGRADE" "$APP" --apply
+          php examples/artisan-catalog/test-upgrade-v2.php "$APP"
+
+      - name: Upload one-time cPanel upgrade script
+        uses: actions/upload-artifact@v4
+        with:
+          name: atelier-upgrade-v2-cli
+          path: examples/artisan-catalog/upgrade-workspace-v2.php
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Prepare clean cPanel deployment package
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          test ! -f .env
+          test -f public/.htaccess
+          test -f .env.example
+          rm -rf node_modules
+          rm -f app/storage/database.sqlite
+          # Keep runtime storage directories empty; SQLite is created by migrations on the server.
+          echo "Package ready for first-time cPanel installation"
+
+      - name: Upload generated SaaS as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atelier-catalogue-generated
+          path: ${{ runner.temp }}/atelier-catalogue/
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
