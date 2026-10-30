@@ -73,7 +73,7 @@ final class McpOAuthController
     public function authorize(): void
     {
         header('Cache-Control: no-store');
-        header('Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; form-action \'self\'; base-uri \'none\'; frame-ancestors \'none\'');
+        header('Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; form-action \'self\' https://chatgpt.com; base-uri \'none\'; frame-ancestors \'none\'');
 
         $request = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' ? $_POST : $_GET;
         $oauth = new DynamicOAuth();
