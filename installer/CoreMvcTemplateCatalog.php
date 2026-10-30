@@ -1217,6 +1217,7 @@ PHP;
 <main class="site-shell <?= $shellClass ?>">
     <?= $content ?>
 </main>
+<?php if (is_file(public_path('assets/business.js'))): ?><script defer src="/assets/business.js"></script><?php endif; ?>
 </body>
 </html>
 PHP;
