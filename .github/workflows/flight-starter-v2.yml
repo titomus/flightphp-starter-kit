@@ -1,0 +1,27 @@
+name: Flight Starter Kit v2 reusable install
+
+on:
+  push:
+    branches: [feature/flight-starter-v2]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP and extensions
+        run: |
+          php -v
+          php -m | grep -i pdo_sqlite
+          php -m | grep -i mbstring
+      - name: Validate PHP source and installer
+        run: |
+          find installer -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l install-flight-starter.php
+      - name: Generate generic client application and test MCP lifecycle
+        run: php tests/v2-smoke.php
