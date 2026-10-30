@@ -385,7 +385,7 @@ final class CodeWorkspace
 
     private function checkPhp(string $path, string $content): void
     {
-        if (str_starts_with($path, 'resources/')) {
+        if (str_starts_with($path, 'public/assets/')) {
             // Text assets are not PHP; Vite must build them separately.
             return;
         }
