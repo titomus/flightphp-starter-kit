@@ -71,12 +71,9 @@ if ($envContents === false) {
 $envContents = str_replace("\nMCP_BEARER_TOKEN=\n", "\n", $envContents);
 $envContents .= <<<'ENV'
 
-# Private ChatGPT MCP integration (OAuth, read-only only)
-# Client ID and secret are generated privately by the administrator.
-MCP_OAUTH_CLIENT_ID=
-MCP_OAUTH_CLIENT_SECRET=
-# Exact callback URL displayed by the ChatGPT plugin setup wizard.
-MCP_OAUTH_REDIRECT_URI=
+# ChatGPT MCP: OAuth clients are registered automatically with PKCE.
+# No shared client ID, client secret or callback configuration is needed.
+# An authenticated administrator must approve each client and its scopes.
 ENV;
 file_put_contents($envExample, rtrim($envContents) . "\n");
 $route = file_get_contents(__DIR__ . '/routes.php');
