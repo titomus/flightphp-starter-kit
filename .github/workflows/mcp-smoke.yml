@@ -1,0 +1,20 @@
+name: MCP generator smoke tests
+
+on:
+  push:
+    branches: [feature/mcp-native]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PHP version
+        run: php -v
+      - name: Run MCP generator smoke test
+        run: php tests/mcp-smoke.php
