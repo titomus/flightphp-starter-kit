@@ -176,6 +176,7 @@ final class ProjectBlueprint
             'frontend_build_dir' => (string) ($this->config['frontend']['build_dir'] ?? 'build'),
             'frontend_dev_server' => (string) ($this->config['frontend']['dev_server'] ?? ''),
             'backoffice_enabled' => $this->features->backoffice ? 'true' : 'false',
+            'mcp_enabled' => $this->features->mcp ? 'true' : 'false',
             'design_config_php' => $this->exportPhp($design),
             'design_preset' => (string) ($design['preset'] ?? 'custom'),
             'design_label' => (string) ($design['label'] ?? 'Custom'),
