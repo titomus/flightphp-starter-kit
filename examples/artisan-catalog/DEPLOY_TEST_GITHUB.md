@@ -1,43 +1,101 @@
-# Déploiement de la démonstration
+# Déployer Atelier Catalogue sur o2switch
 
-**URL cible :** https://test-github.zootz.fr
+**Cible :** https://test-github.zootz.fr
 
-Le workflow `Build artisan mini SaaS` exécute réellement l'installateur puis publie
-un artifact GitHub Actions nommé `atelier-catalogue-generated` (durée : 14 jours).
-Cet artifact est le projet PHP autonome, **pas un site déjà hébergé**.
+## Paramètres vérifiés
 
-## Hébergement attendu
+- Serveur : `nice.o2switch.net` (SSH sur port 22, API cPanel sur port 2083).
+- Identifiant cPanel : `titomus`.
+- Application : `/home/titomus/test-github.zootz.fr`.
+- Racine web configurée dans cPanel : `/home/titomus/test-github.zootz.fr/public`.
+- Code source : branche `demo/artisan-catalog` du dépôt `titomus/flightphp-starter-kit`.
 
-- PHP 8.1+ avec extensions `pdo_sqlite` et `mbstring`.
-- Un accès SSH/SFTP autorisant l'installation du code.
-- Un dossier privé pour l'application (notamment `.env`, `vendor/` et `app/storage/`).
-- La racine web de `test-github.zootz.fr` doit pointer vers le sous-dossier `public/` de l'application.
-- HTTPS et permissions d'écriture pour `app/storage/`.
+Le workflow de build `.github/workflows/build-artisan-demo.yml` fonctionne :
+il exécute le véritable installateur FlightPHP, installe Composer, construit
+les fichiers frontend avec npm, migre SQLite et teste le catalogue + MCP.
+L'archive est publiée dans les artifacts de GitHub Actions.
 
-## Première mise en service
+## Avant le premier déploiement
 
-1. Décompresser l'artifact dans le dossier privé du sous-domaine.
-2. Vérifier que le document root est exactement `<application>/public`, et non `<application>`.
-3. Copier `.env.example` vers `.env` et définir :
-   - `APP_URL=https://test-github.zootz.fr`
-   - `APP_ENV=production`, `APP_DEBUG=false`
-   - `ADMIN_EMAIL` et `ADMIN_PASSWORD` avec des valeurs privées fortes **avant tout seeding**.
-   - `MCP_BEARER_TOKEN` aléatoire si l'endpoint MCP doit être testé.
-   - `MCP_ALLOW_WRITES=false` (mode lecture seule).
-4. Lancer `composer install --no-dev --optimize-autoloader` si les dépendances ne sont pas déjà présentes.
-5. Lancer `php app/Console/console.php migrate`, puis `php app/Console/console.php seed`.
-6. Ouvrir `https://test-github.zootz.fr/admin/login` puis `/catalog` pour importer le fichier de démonstration.
+Créer **cinq secrets** dans le dépôt GitHub, via
+`Settings > Secrets and variables > Actions > New repository secret` :
 
-## Mise à jour automatisée via GitHub
+| Nom | Valeur attendue |
+| --- | --- |
+| `O2_CPANEL_API_TOKEN` | Jeton généré dans cPanel > Gérer les jetons d'API |
+| `O2_SSH_PRIVATE_KEY` | Clé SSH privée dédiée à GitHub Actions, avec retours à la ligne complets |
+| `O2_SSH_KNOWN_HOSTS` | Ligne SSH `nice.o2switch.net ...` de la clé hôte du serveur, empreinte vérifiée |
+| `ARTISAN_ADMIN_EMAIL` | Adresse de connexion à l'administration de la démo |
+| `ARTISAN_ADMIN_PASSWORD` | Mot de passe aléatoire de 20 à 128 caractères (lettres, chiffres et `_!@#%+=:.,-`) |
 
-Il reste à raccorder GitHub Actions à l'hébergement. Paramètres manquants :
-l'hébergeur SSH, le chemin absolu de l'application sur le serveur et la méthode
-d'authentification. Ne jamais ajouter d'identifiants, de clés privées ni de `.env`
-au dépôt : utiliser les GitHub Actions Secrets.
+**Ne partager aucun de ces secrets dans ChatGPT ni les commiter dans Git.**
 
-Le déploiement ne devra pas écraser `.env` ou `app/storage/`, et ne doit pas
-fusionner automatiquement la PR du starter kit. La capacité MCP métier à modifier
-des données restera distincte de la capacité GitHub de modifier le code.
+Clé SSH : créer une paire **dédiée**, de préférence Ed25519, puis importer et
+autoriser sa clé publique dans cPanel > Accès SSH > Gérer les clés SSH.
+Placer la clé privée seulement dans le secret GitHub `O2_SSH_PRIVATE_KEY`.
+Ne pas réutiliser une clé personnelle servant à d'autres services.
 
-**État actuel :** workflow de construction et tests fonctionnels opérationnels,
-déploiement sur le domaine non encore effectué.
+Clé de l'hôte : l'entrée de `O2_SSH_KNOWN_HOSTS` ressemble à :
+
+```text
+nice.o2switch.net ssh-ed25519 AAAA...clé_publique_serveur...
+```
+
+La clé peut être relevée avec `ssh-keyscan -t ed25519 nice.o2switch.net`,
+mais **l'empreinte doit être vérifiée par un canal de confiance** avant
+de l'accepter. Une sortie `ssh-keyscan` seule n'est pas une vérification.
+
+API o2switch : la documentation officielle détaille
+`/execute/SshWhitelist/list`, `add` et `remove` :
+https://faq.o2switch.fr/cpanel/outils/exception-parefeu/
+
+## Déploiement : fonctionnement
+
+Workflow : `.github/workflows/deploy-artisan-o2switch.yml`.
+
+1. Vérification de la présence des cinq secrets.
+2. Génération complète de l'application et tests métier locaux.
+3. Détection de l'IP publique du runner GitHub et ajout temporaire à la liste
+   SSH chez o2switch avec le jeton API cPanel.
+4. Connexion SSH par clé, avec vérification de la clé d'hôte épinglée.
+5. Refus d'écraser un répertoire existant non géré.
+6. Création initiale de `.env` (si absent) avec les secrets d'administration.
+7. Copie rsync **sans suppression**, préservant `.env`, `app/storage/` et SQLite.
+8. Migrations, création du compte administrateur et contrôle HTTPS.
+9. Retrait des seules exceptions SSH créées pour le runner (directions in et out),
+   même en cas d'erreur ultérieure.
+
+La base SQLite, les fichiers privés et les autres autorisations SSH ne sont pas
+supprimés. La base du runner n'est jamais envoyée en production.
+
+L'environnement initial contient `MCP_BEARER_TOKEN` vide et
+`MCP_ALLOW_WRITES=false` : **l'accès MCP public est volontairement désactivé**
+pour cette première publication. Les fonctions d'import CSV restent utilisables
+dans l'interface administrateur. Nous brancherons ensuite une authentification
+MCP adaptée aux utilisateurs réels.
+
+## Déclenchement volontaire
+
+Ce workflow n'est PAS lancé à chaque commit de code. Il démarre :
+
+- sur une demande manuelle `workflow_dispatch`, si GitHub expose l'action ;
+- ou lors de la création/modification explicite de
+  `examples/artisan-catalog/deploy-request.txt` sur la branche
+  `demo/artisan-catalog`.
+
+Ce fichier de déclenchement ne doit être créé **qu'après** configuration des
+secrets. Il peut être ajouté depuis cette conversation via le connecteur GitHub.
+
+## Points à surveiller
+
+- Sur o2switch, le dossier `public` doit être vide pour la première installation.
+  Sinon le workflow s'arrête sans toucher aux fichiers existants.
+- Le CLI PHP distant doit être en version 8.1+ avec `pdo_sqlite` et `mbstring`.
+- Le domaine doit servir HTTPS avec un certificat valide.
+- Le serveur MCP généré est toujours un prototype, sans authentification
+  multi-utilisateur ni transport Streamable HTTP complet.
+- Les changements futurs du starter kit restent dans une pull request, séparée
+  de la branche de démonstration.
+
+**État au 30/10/2026 :** workflow prêt et écrit dans GitHub ; aucun déploiement
+sur o2switch tant que les secrets ne sont pas configurés et le déclenchement demandé.
