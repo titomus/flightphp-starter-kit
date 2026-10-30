@@ -40,7 +40,7 @@ Le workflow `Build artisan mini SaaS` fournit une archive prête à extraire :
    - `APP_ENV=production`, `APP_DEBUG=false`
    - `ADMIN_EMAIL=<adresse privée>`
    - `ADMIN_PASSWORD=<mot de passe fort, jamais publié dans GitHub>`
-   - `MCP_BEARER_TOKEN=` vide, `MCP_ALLOW_WRITES=false` pour ce premier essai.
+   - `MCP_OAUTH_CLIENT_ID=`, `MCP_OAUTH_CLIENT_SECRET=` et `MCP_OAUTH_REDIRECT_URI=` vides pour ce premier essai.
    Conserver `DB_DATABASE=app/storage/database.sqlite` pour SQLite.
 6. Ouvrir **cPanel > Terminal** et exécuter :
    ```bash
@@ -62,6 +62,58 @@ Ce déploiement manuel évite d'avoir à publier des mots de passe serveur
 dans GitHub. Il sert de premier lancement ; nous pourrons ensuite mettre
 en place un déploiement automatique dès que la méthode d'authentification
 cPanel sera disponible ou qu'une alternative sécurisée sera choisie.
+
+## Mettre à jour une installation cPanel déjà fonctionnelle
+
+L'application peut déjà être en service sur ce sous-domaine. Dans ce cas :
+
+1. Vérifier la dernière exécution GitHub Actions réussie de `Build artisan mini SaaS`,
+   puis télécharger son artifact `atelier-catalogue-generated`.
+2. Sauvegarder **avant l'extraction** `/home/titomus/test-github.zootz.fr/.env`
+   et le fichier `app/storage/database.sqlite` (SQLite). Une copie de la base
+   doit être faite à froid ou via une sauvegarde SQLite cohérente.
+3. Dans cPanel, extraire l'archive à la racine de l'application en remplaçant
+   uniquement les fichiers de code existants. L'archive ne contient **ni .env,
+   ni fichier SQLite de tests**. Ne jamais supprimer `app/storage/`.
+4. Vérifier que `app/Mcp/OAuthStore.php`, `app/Controllers/McpOAuthController.php`
+   et `public/mcp.php` figurent bien dans les fichiers mis à jour.
+5. Dans le Terminal cPanel :
+
+   ```bash
+   cd /home/titomus/test-github.zootz.fr
+   php app/Console/console.php migrate
+   ```
+
+6. Confirmer que `/api/health`, `/admin/login` et `/catalog` fonctionnent toujours,
+   puis ouvrir `/.well-known/oauth-authorization-server`.
+
+Le MCP est désactivé tant que ses trois paramètres OAuth ne sont pas renseignés
+dans `.env`. Le compte administrateur existant et ses données restent inchangés.
+
+### Préparer la connexion ChatGPT (lecture seule)
+
+Dans **cPanel → Terminal**, générer deux valeurs aléatoires indépendantes avec :
+
+```bash
+php -r 'echo bin2hex(random_bytes(32)), PHP_EOL;'
+```
+
+Les inscrire uniquement dans le `.env` hébergé :
+
+```dotenv
+MCP_OAUTH_CLIENT_ID=<première_valeur>
+MCP_OAUTH_CLIENT_SECRET=<seconde_valeur>
+MCP_OAUTH_REDIRECT_URI=<callback_HTTPS_exact_fourni_par_ChatGPT>
+```
+
+La callback OAuth est fournie par l'interface de création du plugin personnalisé
+ChatGPT. Ne pas l'inventer. Dans ChatGPT, sélectionner l'authentification OAuth
+avec identifiants clients statiques. L'endpoint MCP est
+`https://test-github.zootz.fr/mcp.php`.
+
+Les paramètres ne doivent jamais être copiés dans une conversation ou dans Git.
+Les trois outils proposés sont en lecture seule : liste, aperçu et informations
+de l'application. Un compte admin doit approuver la connexion explicitement.
 
 ## Avant le premier déploiement
 
@@ -116,11 +168,7 @@ Workflow : `.github/workflows/deploy-artisan-o2switch.yml`.
 La base SQLite, les fichiers privés et les autres autorisations SSH ne sont pas
 supprimés. La base du runner n'est jamais envoyée en production.
 
-L'environnement initial contient `MCP_BEARER_TOKEN` vide et
-`MCP_ALLOW_WRITES=false` : **l'accès MCP public est volontairement désactivé**
-pour cette première publication. Les fonctions d'import CSV restent utilisables
-dans l'interface administrateur. Nous brancherons ensuite une authentification
-MCP adaptée aux utilisateurs réels.
+L'environnement initial ne contient aucune identité OAuth MCP : **l'accès MCP reste indisponible** jusqu'à configuration explicite. L'import CSV reste accessible via le BackOffice authentifié.
 
 ## Déclenchement volontaire
 
