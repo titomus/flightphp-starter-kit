@@ -50,6 +50,10 @@ final class FlightStarterInstaller
         }
 
         $this->printHeader();
+        // MCP code development always belongs to a real administrator account.
+        if ($this->features->mcp && !$this->features->backoffice) {
+            throw new RuntimeException('MCP 2.0 requires the administrator backoffice; enable backoffice or disable MCP.');
+        }
         $this->guardTargetDirectory();
 
         foreach ($this->blueprint->directories() as $directory) {
