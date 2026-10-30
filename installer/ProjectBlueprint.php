@@ -63,7 +63,8 @@ final class ProjectBlueprint
                 'public/build',
                 'resources',
                 'resources/css',
-                'resources/js'
+                'resources/js',
+                'public/assets'
             );
         }
 
