@@ -1,90 +1,120 @@
-# MCP natif dans le FlightPHP Starter Kit
+# MCP natif dans Flight Starter Kit 2.0 (bêta)
 
 ## Principe
 
-Le MCP ne remplace pas les fonctions métier. Le code métier reste dans les services PHP
-et peut être appelé aussi bien par l'interface web, une API REST ou un outil MCP.
-Une fonctionnalité CSV, si l'application en propose une, fonctionne exactement comme
-une autre fonction métier.
+Chaque application installée chez un client possède **son propre serveur MCP**,
+sa base SQLite, son administrateur, ses outils métier et ses sauvegardes.
 
-## Installer
+Le MCP est une interface **vers les services métier** de FlightPHP. Il ne
+remplace pas les contrôleurs, les services ni les migrations du framework.
 
-Configurer `installer/config.php` :
+## Connexion ChatGPT
+
+1. Personnaliser `installer/config.php` : domaine, projet, mot de passe
+   administrateur unique (au moins 16 caractères). Le back-office est requis.
+2. Générer l'application et installer les dépendances.
+3. `php app/Console/console.php migrate` puis `seed`.
+4. Configurer HTTPS et `APP_URL=https://domaine-client.fr` dans `.env`.
+5. Se connecter en administrateur dans le navigateur.
+6. Dans ChatGPT, déclarer un MCP distant avec l'URL
+   `https://domaine-client.fr/mcp`.
+7. Autoriser les permissions nécessaires sur l'écran de consentement.
+
+Le serveur fournit :
+- `/.well-known/oauth-authorization-server` et
+  `/.well-known/oauth-protected-resource/mcp`.
+- Enregistrement dynamique OAuth, PKCE, rotation des tokens et consentement.
+- Endpoint MCP routé par FlightPHP : `POST /mcp`.
+- `app_info` et les outils définis dans `app/Mcp/business_tools.php`.
+- Outils de demande d'évolution, lecture/préparation/validation/déploiement,
+  historique et rollback pour les utilisateurs autorisés.
+
+## Permissions
+
+| Permission | Usage |
+| --- | --- |
+| `business:read` | Lire les données métier via les services |
+| `business:write` | Opérations métier explicitement autorisées |
+| `app:evolve` | Soumettre des demandes d'évolution |
+| `app:deploy` | Préparer et gérer du code métier versionné |
+
+Les outils dépendent de l'identité OAuth : **ne jamais accepter un admin_id
+ou tenant_id fourni par les arguments des outils**.
+
+Les opérations de publication nécessitent aussi
+`ATELIER_CODE_UPDATES_ENABLED=true` dans le `.env` privé. L'installateur
+le configure à `false` par défaut. La prévisualisation précède toujours
+l'activation ; le déploiement et la restauration exigent confirmation.
+
+## Ajouter une fonctionnalité métier
+
+1. Créer un contrôleur sous `app/Controllers/Business/`.
+2. Écrire les règles dans `app/Services/Business/`.
+3. Ajouter la route Flight dans `app/routes/business.php`.
+4. Utiliser les vues sous `app/Views/business/`.
+5. Déclarer un outil MCP dans `app/Mcp/business_tools.php`,
+   **qui invoque le même service** que le contrôleur.
+6. Placer le CSS/JS propre au client sous `public/assets/business.css` et
+   `public/assets/business.js`, chargés automatiquement par le layout.
+7. Si le changement exige une migration SQLite, créer un fichier dans
+   `app/Database/Migrations/` et appliquer la migration par la console.
+   **Les migrations ne sont pas encore déployées automatiquement par MCP.**
+
+Exemple :
 
 ```php
-'mcp' => [
-    'enabled' => true,
-],
-```
-
-Puis lancer l'installateur normalement. La génération ajoute :
-
-- `app/Mcp/Server.php` : serveur JSON-RPC avec `initialize`, `ping`, `tools/list` et `tools/call`.
-- `app/Mcp/tools.php` : registre explicite des capacités exposées, modifiable par le développeur.
-- `public/mcp.php` : point d'entrée HTTP POST qui exige un jeton Bearer.
-
-Par défaut, `mcp.enabled` vaut `false` et aucun fichier MCP n'est généré.
-
-Dans le projet généré, définir `MCP_BEARER_TOKEN` dans `.env` avec une valeur aléatoire
-d'au moins 32 caractères, puis publier l'application sous HTTPS. Exemple de génération :
-
-```bash
-php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
-```
-
-Le test de génération se lance depuis la racine du dépôt source :
-
-```bash
-php tests/mcp-smoke.php
-```
-
-## Ajouter une fonction métier au MCP
-
-Exemple illustratif : si `App\\Services\\CatalogService` existe et propose une opération
-de prévisualisation d'import, un développeur peut la déclarer dans `app/Mcp/tools.php` :
-
-```php
-'catalog_preview_import' => [
-    'description' => 'Preview a catalog import without changing records.',
-    'inputSchema' => [
-        'type' => 'object',
-        'properties' => [
-            'rows' => ['type' => 'array', 'items' => ['type' => 'object']],
+if (in_array(\App\Mcp\DynamicOAuth::READ, $allowedScopes, true)) {
+    return [
+        'orders_summary' => [
+            'description' => 'Résumé des commandes du client connecté',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => new \stdClass(),
+                'additionalProperties' => false,
+            ],
+            'handler' => static fn (array $args): array =>
+                (new \App\Services\Business\OrdersService())->summary(),
         ],
-        'required' => ['rows'],
-    ],
-    'handler' => static function (array $args): array {
-        // Example only: implement the service and validate the payload first.
-        return (new \\App\\Services\\CatalogService())->previewImport($args['rows']);
-    },
-],
+    ];
+}
+return [];
 ```
 
-ChatGPT peut analyser le CSV et fournir les lignes structurées à cet outil. L'import
-n'est ni obligatoire ni intégré en dur au serveur MCP. Le logiciel reste maître
-de la validation, des règles de doublons et des autorisations.
+Le code précédent est illustratif : `OrdersService` doit d'abord être créé.
 
-**Attention :** le prototype utilise un secret d'application global. Ne pas ajouter
-d'outils de mutation multi-utilisateur avec ce seul mécanisme : chaque appel doit
-être lié à une identité authentifiée et à un tenant, avec permissions spécifiques.
+## Sauvegardes et limitations
 
-## Evolution du code par IA : périmètre séparé
+Le moteur place ses brouillons et snapshots sous
+`app/storage/atelier/`, en dehors du dossier public. Le dossier doit être
+inscriptible par PHP, ne doit pas être exposé par le serveur HTTP et doit
+être sauvegardé à l'extérieur.
 
-Un agent de développement autorisé peut inspecter le dépôt GitHub, créer une branche,
-modifier des fichiers, exécuter CI et ouvrir une pull request. Ce processus est
-distinct des outils MCP accessibles aux utilisateurs finaux du SaaS.
+Restauration CLI si le MCP est indisponible :
 
-- Les outils métier n'exposent jamais shell, SQL générique ou écriture arbitraire de fichiers.
-- Le code modifié passe par une branche, des tests et une revue avant déploiement.
-- Les clés GitHub et la capacité de déploiement ne sont jamais accessibles depuis le MCP métier.
+```bash
+php app/Console/atelier_rollback.php <release_id> <admin_id>
+# Uniquement en dernier recours, si un déploiement multifichier s'est interrompu :
+php app/Console/atelier_rollback.php <release_id> <admin_id> --emergency
+```
 
-## Limites actuelles
+**Important :** modifier du PHP via MCP est une capacité de déploiement
+privilégiée, pas un bac à sable. Le moteur limite les dossiers modifiables,
+mais ne peut pas empêcher du code PHP délibérément malveillant à l'intérieur
+d'un fichier autorisé. N'accordez jamais `app:deploy` à un utilisateur non
+administrateur. Une compromission du compte ou du token aurait des
+conséquences sur le serveur.
 
-Ceci est un socle **expérimental**, pas un serveur MCP production prêt à connecter à
-n'importe quel client. Il prend en charge un transport JSON-RPC HTTP POST minimal.
-La compatibilité complète Streamable HTTP, la négociation des versions du protocole,
-les sessions, l'authentification OAuth, les permissions par utilisateur/tenant,
-la limitation des appels et les tests d'intégration avec des clients réels restent
-à réaliser avant une exposition publique.
+Le moteur vérifie la syntaxe PHP et les empreintes SHA-256, mais
+**ne prouve pas le bon fonctionnement métier** des modifications.
+Une série d'écritures n'est pas entièrement atomique.
+La sauvegarde des fichiers ne restaure pas SQLite ni les pièces jointes.
+Prévoir une sauvegarde de la base, du stockage et une revue technique
+pour les installations clients réelles.
 
-Les tests locaux automatisés et la validation GitHub CI ne remplacent pas ces essais.
+Le registre OAuth actuel nécessite encore une revue production :
+limitations d'enregistrement et contrôles anti-abus, révocation depuis
+l'interface admin, gestion du cycle de vie des accès et tests sur un second
+hébergement client.
+
+Voir [docs/FLIGHT_STARTER_V2.md](FLIGHT_STARTER_V2.md) pour le périmètre produit
+et les critères de livraison.
