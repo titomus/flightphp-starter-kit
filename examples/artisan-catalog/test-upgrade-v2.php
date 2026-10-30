@@ -18,6 +18,11 @@ function testUpgrade(bool $ok, string $description): void
     echo "[OK] $description\n";
 }
 
+$mcpPrincipal = ['admin_id' => 1, 'scopes' => ['catalog:read', 'catalog:write', 'app:evolve', 'app:deploy']];
+$tools = require $root . '/app/Mcp/tools.php';
+testUpgrade(isset($tools['dev_prepare_patch'])
+    && ($tools['dev_prepare_patch']['inputSchema']['properties']['files']['maxItems'] ?? 0) === 12,
+    'MCP tool schema now advertises 12 files');
 $workspace = new \App\Mcp\CodeWorkspace($root);
 $files = $workspace->listFiles();
 $paths = array_column($files, 'path');
