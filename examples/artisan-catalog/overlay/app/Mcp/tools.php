@@ -163,7 +163,7 @@ if ($adminId > 0 && in_array(DynamicOAuth::DEPLOY, $allowedScopes, true)) {
         'required' => ['path', 'expected_sha256', 'content'],
         'additionalProperties' => false,
     ];
-    $versionSchema = ['type' => 'string', 'pattern' => '^[a-f0-9]{32}
+    $versionSchema = ['type' => 'string', 'minLength' => 32, 'maxLength' => 32, 'pattern' => '^[a-f0-9]{32}'];
     $tools['dev_list_files'] = [
         'description' => 'Lists narrowly permitted business source files, their existence and SHA-256. No access to credentials or framework core.',
         'inputSchema' => ['type' => 'object', 'properties' => new \stdClass(), 'additionalProperties' => false],
