@@ -29,3 +29,4 @@
 \Flight::route('GET /oauth/authorize', [new \App\Controllers\McpOAuthController(), 'authorize']);
 \Flight::route('POST /oauth/authorize', [new \App\Controllers\McpOAuthController(), 'authorize']);
 \Flight::route('POST /oauth/token', [new \App\Controllers\McpOAuthController(), 'token']);
+\Flight::route('POST /oauth/register', [new \App\Controllers\McpOAuthController(), 'register']);
