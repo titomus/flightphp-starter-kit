@@ -217,6 +217,23 @@ $tools = require $root . '/app/Mcp/tools.php';
 verify(isset($tools['dev_list_files'], $tools['dev_read_file'], $tools['dev_prepare_patch'],
     $tools['dev_validate_patch'], $tools['dev_deploy'], $tools['dev_rollback'], $tools['dev_history']),
     'All seven GitHub-free code lifecycle MCP tools require app:deploy scope');
+
+$devServer = new \App\Mcp\Server($tools);
+$devList = $devServer->handle('{"jsonrpc":"2.0","id":100,"method":"tools/list"}');
+$devWire = json_decode(json_encode($devList, JSON_THROW_ON_ERROR),
+    false, 512, JSON_THROW_ON_ERROR);
+verify(count($devWire->result->tools) === 14,
+    'MCP discovery exposes all 14 business and privileged code tools');
+foreach ($devWire->result->tools as $definition) {
+    verify(is_object($definition->inputSchema)
+        && is_object($definition->inputSchema->properties),
+        'All MCP tool JSON schemas serialize as objects: ' . $definition->name);
+}
+$blocked = $devServer->handle('{"jsonrpc":"2.0","id":101,"method":"tools/call","params":{"name":"dev_read_file","arguments":{"path":"app/Mcp/DynamicOAuth.php"}}}');
+verify(($blocked['result']['isError'] ?? false) === true
+    && str_contains($blocked['result']['content'][0]['text'] ?? '', 'Protected'),
+    'Privileged development errors are actionable but do not reveal protected source');
+
 $workspace = new \App\Mcp\CodeWorkspace($root);
 $files = $workspace->listFiles();
 verify(count($files) >= 5, 'Code workspace enumerates business allowlisted files');
