@@ -104,6 +104,30 @@ jobs:
           test -f app/Mcp/HttpEndpoint.php
           echo "Web routing, OAuth discovery, unauthenticated MCP rejection: OK"
 
+      - name: Test protected-engine v2 upgrade and seven-file rollback
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/atelier-catalogue"
+          UPGRADE=examples/artisan-catalog/upgrade-workspace-v2.php
+          php "$UPGRADE" "$APP" --plan
+          php "$UPGRADE" "$APP" --apply | tee "$RUNNER_TEMP/v2-upgrade-apply.log"
+          php -l "$APP/app/Mcp/CodeWorkspace.php"
+          php examples/artisan-catalog/test-upgrade-v2.php "$APP"
+          ID=$(awk '/^SUCCESS \\| snapshot:/ {print $NF}' "$RUNNER_TEMP/v2-upgrade-apply.log")
+          test -n "$ID"
+          php "$UPGRADE" "$APP" --rollback "$ID"
+          php -l "$APP/app/Mcp/CodeWorkspace.php"
+          php "$UPGRADE" "$APP" --apply
+          php examples/artisan-catalog/test-upgrade-v2.php "$APP"
+
+      - name: Upload one-time cPanel upgrade script
+        uses: actions/upload-artifact@v4
+        with:
+          name: atelier-upgrade-v2-cli
+          path: examples/artisan-catalog/upgrade-workspace-v2.php
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Prepare clean cPanel deployment package
         run: |
           set -euo pipefail
