@@ -40,7 +40,7 @@ Le workflow `Build artisan mini SaaS` fournit une archive prête à extraire :
    - `APP_ENV=production`, `APP_DEBUG=false`
    - `ADMIN_EMAIL=<adresse privée>`
    - `ADMIN_PASSWORD=<mot de passe fort, jamais publié dans GitHub>`
-   - `MCP_OAUTH_CLIENT_ID=`, `MCP_OAUTH_CLIENT_SECRET=` et `MCP_OAUTH_REDIRECT_URI=` vides pour ce premier essai.
+   - Aucun identifiant OAuth manuel nécessaire : le MCP utilise DCR + PKCE.
    Conserver `DB_DATABASE=app/storage/database.sqlite` pour SQLite.
 6. Ouvrir **cPanel > Terminal** et exécuter :
    ```bash
@@ -75,8 +75,8 @@ L'application peut déjà être en service sur ce sous-domaine. Dans ce cas :
 3. Dans cPanel, extraire l'archive à la racine de l'application en remplaçant
    uniquement les fichiers de code existants. L'archive ne contient **ni .env,
    ni fichier SQLite de tests**. Ne jamais supprimer `app/storage/`.
-4. Vérifier que `app/Mcp/OAuthStore.php`, `app/Controllers/McpOAuthController.php`
-   et `public/mcp.php` figurent bien dans les fichiers mis à jour.
+4. Vérifier que `app/Mcp/DynamicOAuth.php`, `app/Services/EvolutionRequestService.php`,
+   `app/Controllers/McpOAuthController.php` et `public/mcp.php` figurent bien dans les fichiers mis à jour.
 5. Dans le Terminal cPanel :
 
    ```bash
@@ -87,33 +87,32 @@ L'application peut déjà être en service sur ce sous-domaine. Dans ce cas :
 6. Confirmer que `/api/health`, `/admin/login` et `/catalog` fonctionnent toujours,
    puis ouvrir `/.well-known/oauth-authorization-server`.
 
-Le MCP est désactivé tant que ses trois paramètres OAuth ne sont pas renseignés
-dans `.env`. Le compte administrateur existant et ses données restent inchangés.
+Le MCP nécessite toujours un administrateur connecté et un consentement OAuth.
+La nouvelle version n'exige plus trois paramètres OAuth manuels dans `.env`.
 
-### Préparer la connexion ChatGPT (lecture seule)
+### Connecter ChatGPT sans Client ID ni Client Secret (OAuth DCR)
 
-Dans **cPanel → Terminal**, générer deux valeurs aléatoires indépendantes avec :
+La version actuelle prend en charge l'inscription automatique des clients OAuth.
+Après l'installation et la migration SQLite, **aucune clé OAuth manuelle
+n'est nécessaire**.
 
-```bash
-php -r 'echo bin2hex(random_bytes(32)), PHP_EOL;'
-```
+1. Ouvrir `https://test-github.zootz.fr/.well-known/oauth-authorization-server`
+   et vérifier `registration_endpoint` dans le JSON.
+2. Dans ChatGPT, créer un serveur MCP personnalisé avec
+   `https://test-github.zootz.fr/mcp.php`, choisir **OAuth** puis
+   **Dynamic Client Registration (DCR)**. Les champs de Client ID et de
+   Client Secret ne sont pas nécessaires.
+3. Se connecter au compte administrateur du SaaS et approuver les permissions
+   demandées depuis l'écran d'autorisation.
+4. Tester `catalog_list`, puis `catalog_preview_import` et
+   `catalog_commit_import` avec la permission `catalog:write`.
+5. Tester `app_request_change` pour enregistrer une demande d'évolution.
+   Cet outil ne modifie pas encore les fichiers du SaaS : il enregistre un
+   ticket sécurisé en vue d'un futur agent de développement.
 
-Les inscrire uniquement dans le `.env` hébergé :
-
-```dotenv
-MCP_OAUTH_CLIENT_ID=<première_valeur>
-MCP_OAUTH_CLIENT_SECRET=<seconde_valeur>
-MCP_OAUTH_REDIRECT_URI=<callback_HTTPS_exact_fourni_par_ChatGPT>
-```
-
-La callback OAuth est fournie par l'interface de création du plugin personnalisé
-ChatGPT. Ne pas l'inventer. Dans ChatGPT, sélectionner l'authentification OAuth
-avec identifiants clients statiques. L'endpoint MCP est
-`https://test-github.zootz.fr/mcp.php`.
-
-Les paramètres ne doivent jamais être copiés dans une conversation ou dans Git.
-Les trois outils proposés sont en lecture seule : liste, aperçu et informations
-de l'application. Un compte admin doit approuver la connexion explicitement.
+Le callback doit appartenir à `https://chatgpt.com` et être accepté par
+la liste de chemins d'autorisation du serveur. Toute autre redirection échoue.
+Les outils d'écriture ne permettent aucune modification arbitraire de fichiers.
 
 ## Avant le premier déploiement
 
@@ -168,7 +167,7 @@ Workflow : `.github/workflows/deploy-artisan-o2switch.yml`.
 La base SQLite, les fichiers privés et les autres autorisations SSH ne sont pas
 supprimés. La base du runner n'est jamais envoyée en production.
 
-L'environnement initial ne contient aucune identité OAuth MCP : **l'accès MCP reste indisponible** jusqu'à configuration explicite. L'import CSV reste accessible via le BackOffice authentifié.
+La nouvelle version utilise DCR avec inscription OAuth automatique ; les identifiants administrateur et l'accès au catalogue restent protégés. Ne pas exposer la démonstration mono-tenant à des clients externes.
 
 ## Déclenchement volontaire
 
