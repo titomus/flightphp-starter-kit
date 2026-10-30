@@ -76,6 +76,23 @@ jobs:
             -d '{"redirect_uris":["https://chatgpt.com/connector/oauth/ci-smoke"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}' \
             http://127.0.0.1:8765/oauth/register)
           printf '%s' "$DCR_RESPONSE" | jq -e '.client_id and (.token_endpoint_auth_method == "none")'
+          # Regression: an incomplete OAuth exchange MUST be HTTP 400, not
+          # a JSON error wrapped in HTTP 200 by the framework dispatcher.
+          INVALID_TOKEN_CODE=$(curl -s -o "$RUNNER_TEMP/invalid-oauth.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data 'grant_type=authorization_code' http://127.0.0.1:8765/oauth/token)
+          test "$INVALID_TOKEN_CODE" = "400"
+          jq -e '.error == "invalid_grant"' "$RUNNER_TEMP/invalid-oauth.json"
+          INVALID_REGISTER_CODE=$(curl -s -o "$RUNNER_TEMP/invalid-registration.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["https://attacker.example/callback"]}' http://127.0.0.1:8765/oauth/register)
+          test "$INVALID_REGISTER_CODE" = "400"
+          jq -e '.error == "invalid_client_metadata"' "$RUNNER_TEMP/invalid-registration.json"
+          VALID_REGISTER_CODE=$(curl -s -o "$RUNNER_TEMP/valid-registration.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["https://chatgpt.com/connector/oauth/ci-status-test"],"token_endpoint_auth_method":"none"}' http://127.0.0.1:8765/oauth/register)
+          test "$VALID_REGISTER_CODE" = "201"
+          jq -e '.client_id' "$RUNNER_TEMP/valid-registration.json"
           NO_TOKEN_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
             -H 'Accept: application/json, text/event-stream' \
             -H 'Content-Type: application/json' \
