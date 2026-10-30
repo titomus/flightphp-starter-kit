@@ -21,6 +21,7 @@ if (PHP_SAPI !== 'cli') {
 const UPGRADE_MARKER = 'Flight Starter v2 workspace upgrade';
 const TARGETS = [
     'app/Mcp/CodeWorkspace.php',
+    'app/Mcp/tools.php',
     'app/bootstrap.php',
     'app/Views/layouts/main.php',
     'app/routes/business.php',
@@ -149,9 +150,10 @@ PHP;
 function prepareUpgrade(string $root): array
 {
     $workspace = $root . '/app/Mcp/CodeWorkspace.php';
+    $registry = $root . '/app/Mcp/tools.php';
     $bootstrap = $root . '/app/bootstrap.php';
     $layout = $root . '/app/Views/layouts/main.php';
-    foreach ([$workspace, $bootstrap, $layout] as $file) {
+    foreach ([$workspace, $registry, $bootstrap, $layout] as $file) {
         if (is_link($file) || !is_file($file)) {
             upgradeFail('Expected regular source file missing or symlinked: ' . $file);
         }
@@ -159,6 +161,17 @@ function prepareUpgrade(string $root): array
 
     $oldWorkspace = (string) file_get_contents($workspace);
     $newWorkspace = buildWorkspace($oldWorkspace);
+    $oldRegistry = (string) file_get_contents($registry);
+    $newRegistry = replaceOnce($oldRegistry,
+        "'maxItems' => 5, 'items' => \$fileSchema",
+        "'maxItems' => 12, 'items' => \$fileSchema",
+        'MCP schema patch count'
+    );
+    $newRegistry = replaceOnce($newRegistry,
+        'for 1-5 allowlisted files',
+        'for 1-12 allowlisted files',
+        'MCP tool description'
+    );
     $oldBootstrap = (string) file_get_contents($bootstrap);
     if (str_contains($oldBootstrap, "require \$basePath . '/app/routes/business.php';")) {
         upgradeFail('Business routes are already registered; review this installation manually.');
@@ -192,6 +205,7 @@ function prepareUpgrade(string $root): array
     // We do not touch the installed catalog views, inventory, tools or database.
     $updates = [
         'app/Mcp/CodeWorkspace.php' => $newWorkspace,
+        'app/Mcp/tools.php' => $newRegistry,
         'app/bootstrap.php' => $newBootstrap,
         'app/Views/layouts/main.php' => $newLayout,
     ];
