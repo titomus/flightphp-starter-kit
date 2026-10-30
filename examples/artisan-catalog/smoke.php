@@ -41,68 +41,128 @@ verify($second['counts']['update'] === 3, 'Re-import previews updates instead of
 $again = $service->commitImport($rows);
 verify($again['imported'] === 3 && count($service->listItems()) === 3, 'SKU upsert remains idempotent');
 
+// OAuth-based MCP capabilities are bound to a verified principal, never to
+// user-supplied arguments or a public, arbitrary file-write method.
+$mcpPrincipal = ['admin_id' => 1, 'scopes' => ['catalog:read']];
 $tools = require $root . '/app/Mcp/tools.php';
 $server = new \App\Mcp\Server($tools);
 $listed = $server->handle('{"jsonrpc":"2.0","id":1,"method":"tools/list"}');
 $names = array_column($listed['result']['tools'], 'name');
-verify(in_array('catalog_list', $names, true) && in_array('catalog_preview_import', $names, true), 'Discover catalog MCP tools');
+verify(in_array('catalog_list', $names, true) && in_array('catalog_preview_import', $names, true), 'Read-only MCP tools are discoverable');
+verify(!in_array('catalog_commit_import', $names, true), 'Catalog writes require catalog:write scope');
+verify(!in_array('app_request_change', $names, true), 'Evolution requests require app:evolve scope');
 
-$call = $server->handle('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"catalog_list"}}');
-$content = json_decode($call['result']['content'][0]['text'] ?? '', true);
-verify(count($content['items'] ?? []) === 3, 'MCP adapter reads business catalog service');
+$read = $server->handle('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"catalog_list"}}');
+$items = json_decode($read['result']['content'][0]['text'] ?? '', true);
+verify(count($items['items'] ?? []) === 3, 'Read catalog through authenticated MCP business adapter');
 
-$blocked = $server->handle('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"catalog_commit_import","arguments":{"confirmed":true,"rows":[]}}}');
-verify(!in_array('catalog_commit_import', $names, true), 'No MCP write tool is advertised');
-verify(($blocked['error']['code'] ?? null) === -32602, 'MCP write tool calls are denied');
+$denied = $server->handle('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"catalog_commit_import","arguments":{"confirmed":true,"rows":[]}}}');
+verify(($denied['error']['code'] ?? null) === -32602, 'Unauthorized tool calls are refused');
 
-// Test private OAuth with deterministic, fake credentials. Never store real
-// credentials in source control or GitHub Action logs.
-$_ENV['MCP_OAUTH_CLIENT_ID'] = 'mcp-test-client';
-$_ENV['MCP_OAUTH_CLIENT_SECRET'] = str_repeat('test', 16);
-$_ENV['MCP_OAUTH_REDIRECT_URI'] = 'https://example.test/oauth/callback';
-$oauth = new \App\Mcp\OAuthStore();
-verify(\App\Mcp\OAuthStore::enabled(), 'OAuth provider requires explicit configuration');
+$mcpPrincipal = ['admin_id' => 1, 'scopes' => ['catalog:read', 'catalog:write', 'app:evolve']];
+$tools = require $root . '/app/Mcp/tools.php';
+$server = new \App\Mcp\Server($tools);
+$listed = $server->handle('{"jsonrpc":"2.0","id":4,"method":"tools/list"}');
+$names = array_column($listed['result']['tools'], 'name');
+verify(in_array('catalog_commit_import', $names, true), 'Catalog writes available only with write scope');
+verify(in_array('app_request_change', $names, true), 'Evolution request tool available with app:evolve scope');
+verify(!in_array('write_file', $names, true) && !in_array('run_shell', $names, true), 'No generic file or command execution tools');
+
+$importNoConsent = $server->handle(json_encode([
+    'jsonrpc' => '2.0', 'id' => 5, 'method' => 'tools/call',
+    'params' => ['name' => 'catalog_commit_import', 'arguments' => ['rows' => $rows, 'confirmed' => false]],
+], JSON_THROW_ON_ERROR));
+verify(($importNoConsent['result']['isError'] ?? false) === true, 'Import requires explicit confirmation');
+
+$importApproved = $server->handle(json_encode([
+    'jsonrpc' => '2.0', 'id' => 6, 'method' => 'tools/call',
+    'params' => ['name' => 'catalog_commit_import', 'arguments' => ['rows' => $rows, 'confirmed' => true]],
+], JSON_THROW_ON_ERROR));
+$importResult = json_decode($importApproved['result']['content'][0]['text'] ?? '', true);
+verify(($importResult['imported'] ?? 0) === 3, 'Authorized MCP catalog write uses existing domain service');
+
+$change = $server->handle(json_encode([
+    'jsonrpc' => '2.0', 'id' => 7, 'method' => 'tools/call',
+    'params' => ['name' => 'app_request_change', 'arguments' => [
+        'summary' => 'Ajouter la fiche fournisseur',
+        'details' => 'Je souhaite rattacher chaque référence à un fournisseur et retrouver son prix d’achat depuis le catalogue.',
+    ]],
+], JSON_THROW_ON_ERROR));
+$changeRecord = json_decode($change['result']['content'][0]['text'] ?? '', true);
+verify(($changeRecord['status'] ?? '') === 'requested' && (int) ($changeRecord['id'] ?? 0) > 0, 'AI can submit an evolution request without developer account');
+$service = new \App\Services\EvolutionRequestService(\App\Services\Database::connection());
+verify($service->status(1, (int) $changeRecord['id']) !== null, 'Owner can track evolution request');
+verify($service->status(2, (int) $changeRecord['id']) === null, 'Another admin cannot see request');
+
+// Dynamic OAuth client registration: no manual client ID, client secret or
+// GitHub account is needed. ChatGPT receives a public client ID automatically.
+$oauth = new \App\Mcp\DynamicOAuth();
+$redirect = 'https://chatgpt.com/connector/oauth/artisan-test';
+$client = $oauth->register([
+    'redirect_uris' => [$redirect],
+    'grant_types' => ['authorization_code', 'refresh_token'],
+    'response_types' => ['code'],
+    'token_endpoint_auth_method' => 'none',
+]);
+verify(isset($client['client_id']) && !isset($client['client_secret']), 'Dynamic registration returns a public PKCE client without a secret');
+try {
+    $oauth->register(['redirect_uris' => ['https://attacker.example/callback']]);
+    throw new RuntimeException('Untrusted redirect was accepted');
+} catch (\InvalidArgumentException) {
+    verify(true, 'DCR refuses untrusted callback domains');
+}
+
 $verifier = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
 $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 $authRequest = [
-    'client_id' => 'mcp-test-client',
-    'redirect_uri' => 'https://example.test/oauth/callback',
+    'client_id' => $client['client_id'],
+    'redirect_uri' => $redirect,
     'response_type' => 'code',
     'code_challenge_method' => 'S256',
     'code_challenge' => $challenge,
-    'scope' => 'catalog:read',
-    'state' => 'test-random-state',
+    'scope' => 'catalog:read catalog:write app:evolve',
+    'state' => 'random-nonce',
+    'resource' => \App\Mcp\DynamicOAuth::resource(),
 ];
-verify(\App\Mcp\OAuthStore::isValidRequest($authRequest), 'Valid authorization request with PKCE');
-verify(!\App\Mcp\OAuthStore::isValidRequest(array_replace($authRequest, ['redirect_uri' => 'https://evil.example/'])), 'Reject unapproved OAuth redirect');
+$validated = $oauth->verifyAuthorizationRequest($authRequest);
+verify(is_array($validated), 'DCR authorization validates registered callback, scopes and PKCE');
+verify($oauth->verifyAuthorizationRequest(array_replace($authRequest, ['redirect_uri' => 'https://attacker.example/callback'])) === null, 'OAuth rejects redirect substitution');
 
-verify(\App\Mcp\OAuthStore::authenticateClient('mcp-test-client', str_repeat('test', 16)), 'Authenticate static OAuth client');
-verify(!\App\Mcp\OAuthStore::authenticateClient('mcp-test-client', 'wrong'), 'Reject wrong OAuth client secret');
-$code = $oauth->authorize(1, 'mcp-test-client', 'https://example.test/oauth/callback', $challenge);
+$code = $oauth->authorize(1, $validated);
 try {
-    $oauth->exchange($code, 'mcp-test-client', 'https://example.test/oauth/callback', str_repeat('X', 43));
-    throw new RuntimeException('Invalid PKCE verifier accepted');
+    $oauth->exchange([
+        'client_id' => $client['client_id'], 'redirect_uri' => $redirect,
+        'code' => $code, 'code_verifier' => str_repeat('Z', 43),
+        'resource' => \App\Mcp\DynamicOAuth::resource(),
+    ]);
+    throw new RuntimeException('Wrong PKCE verifier was accepted');
 } catch (\InvalidArgumentException) {
-    verify(true, 'Reject incorrect PKCE verifier');
+    verify(true, 'OAuth rejects incorrect PKCE verifier');
 }
-$tokens = $oauth->exchange($code, 'mcp-test-client', 'https://example.test/oauth/callback', $verifier);
-verify($tokens['scope'] === 'catalog:read' && strlen($tokens['access_token']) > 40, 'Issue OAuth access token with read-only scope');
-verify($oauth->principal($tokens['access_token'])['admin_id'] === 1, 'Validate authorized OAuth token');
+$token = $oauth->exchange([
+    'client_id' => $client['client_id'], 'redirect_uri' => $redirect,
+    'code' => $code, 'code_verifier' => $verifier,
+    'resource' => \App\Mcp\DynamicOAuth::resource(),
+]);
+$principal = $oauth->principal($token['access_token']);
+verify(is_array($principal) && in_array('app:evolve', $principal['scopes'], true), 'OAuth token grants approved business and evolution scopes');
 try {
-    $oauth->exchange($code, 'mcp-test-client', 'https://example.test/oauth/callback', $verifier);
-    throw new RuntimeException('Reused authorization code accepted');
+    $oauth->exchange([
+        'client_id' => $client['client_id'], 'redirect_uri' => $redirect,
+        'code' => $code, 'code_verifier' => $verifier,
+    ]);
+    throw new RuntimeException('OAuth authorization code was reused');
 } catch (\InvalidArgumentException) {
-    verify(true, 'Prevent authorization code reuse');
+    verify(true, 'OAuth authorization codes are single-use');
 }
-$rotated = $oauth->refresh($tokens['refresh_token'], 'mcp-test-client');
-verify($oauth->principal($tokens['access_token']) === null, 'Revoke access token when refreshing');
-verify($oauth->principal($rotated['access_token'])['scope'] === 'catalog:read', 'Rotate refresh and access tokens');
+$rotated = $oauth->refresh(['client_id' => $client['client_id'], 'refresh_token' => $token['refresh_token']]);
+verify($oauth->principal($token['access_token']) === null, 'Refreshing revokes the previous access token');
+verify(is_array($oauth->principal($rotated['access_token'])), 'Refresh issues a valid new access token');
 try {
-    $oauth->refresh($tokens['refresh_token'], 'mcp-test-client');
-    throw new RuntimeException('Reused refresh token accepted');
+    $oauth->refresh(['client_id' => $client['client_id'], 'refresh_token' => $token['refresh_token']]);
+    throw new RuntimeException('OAuth refresh token was reused');
 } catch (\InvalidArgumentException) {
-    verify(true, 'Prevent refresh token reuse');
+    verify(true, 'Refresh tokens are single-use');
 }
 
-echo "Artisan SaaS end-to-end smoke tests: PASS\n";
-
+echo "Artisan SaaS DCR, MCP business writes and evolution-request smoke tests: PASS\n";
