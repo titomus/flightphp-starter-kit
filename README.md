@@ -1,4 +1,4 @@
-# Flight PHP Starter Kit
+# Flight Starter Kit 2.0 (bêta)
 
 Installer configurable pour generer une application Flight PHP complete: MVC, auth, backoffice, queue, Stripe, OAuth, SEO, email, Vite, Tailwind, HTMX, AlpineJS et design presets.
 
@@ -18,33 +18,48 @@ Le but du projet est de partir d'un seul dossier d'installation, d'ajuster `inst
 - Router PHP integre via `public/router.php` pour servir les fichiers statiques et router les URLs dynamiques comme `/sitemap.xml`
 - Design system base sur presets et CSS variables
 
-## MCP optionnel (experimental)
+## Développement des applications clients via ChatGPT (nouveau en v2)
 
-Le starter kit peut generer un point d'entree MCP HTTP et un registre explicite
-d'outils metier. La logique metier reste dans les services PHP partages par
-l'interface web, l'API et le MCP. L'import CSV n'est qu'un exemple possible.
+La v2 génère une **application FlightPHP MVC indépendante**, avec :
+- Un serveur MCP intégré sur la route Flight `/mcp` (pas de fichier PHP public à appeler directement).
+- Une connexion ChatGPT via OAuth 2.1, PKCE et enregistrement dynamique du client.
+- Des permissions distinctes `business:read`, `business:write`, `app:evolve` et `app:deploy`.
+- Un registre de fonctions métier dans `app/Mcp/business_tools.php`, utilisant les services PHP de l'application.
+- Des outils de développement limités aux fichiers métier, avec brouillon, validation, sauvegardes, déploiement et rollback.
+- Des routes, contrôleurs, services, modèles et vues métier organisés sous des dossiers dédiés.
+- Des CSS/JS métier chargés directement depuis `public/assets/business.css` et `business.js` sans reconstruction Vite.
 
-Dans `installer/config.php`, activer :
+**Le dépôt sert à fabriquer le logiciel.** Après installation, les évolutions
+métier autorisées peuvent être effectuées directement sur l'hébergement du
+client via ChatGPT. Aucun dépôt GitHub n'est nécessaire pour ses modifications
+quotidiennes.
 
-```php
-'mcp' => [
-    'enabled' => true,
-],
+Le droit de déployer du PHP **n'est jamais activé automatiquement**. Il doit
+être accordé explicitement par l'administrateur et activé dans le fichier
+`.env` privé avec `ATELIER_CODE_UPDATES_ENABLED=true`.
+
+**Avertissement :** il s'agit encore d'une bêta. La publication PHP est une
+capacité très sensible et ne remplace pas une revue de sécurité, une sauvegarde
+de base de données ni des tests fonctionnels. Les modifications du framework,
+des dépendances et les migrations de schéma ne sont pas encore automatisées
+dans l'atelier.
+
+- [Architecture, contrat client et feuille de route](docs/FLIGHT_STARTER_V2.md)
+- [Intégration MCP et droits](docs/MCP_NATIVE.md)
+- Test de génération et rollback : `php tests/v2-smoke.php`
+- Test d'installation et HTTP : GitHub Actions `Flight Starter Kit v2 reusable install`
+
+Pour tester cette **branche bêta** avant sa publication sur `main` :
+
+```bash
+git clone https://github.com/titomus/flightphp-starter-kit.git my-project
+cd my-project
+git switch feature/flight-starter-v2
+# Configurer un mot de passe administrateur unique et le domaine dans installer/config.php
+php install-flight-starter.php
 ```
 
-L'installateur genere `app/Mcp/Server.php`, `app/Mcp/tools.php` et
-`public/mcp.php`. Le MCP est desactive par defaut.
-
-Definir `MCP_BEARER_TOKEN` avec un secret aleatoire d'au moins 32 caracteres
-avant tout essai via HTTP. Utiliser HTTPS. Le prototype prend en charge les
-principales methodes JSON-RPC MCP mais **pas encore** une implementation
-production complete (OAuth, permissions multi-tenant, transport Streamable HTTP
-integral et tests d'interoperabilite).
-
-Test automatisé : `php tests/mcp-smoke.php`.
-
-Voir [docs/MCP_NATIVE.md](docs/MCP_NATIVE.md) pour le raccord des services
-metier et la separation entre MCP utilisateur et agent de developpement.
+Puis installer les migrations avant de connecter le client MCP.
 
 ## Prerequis
 
