@@ -6,6 +6,11 @@ declare(strict_types=1);
 // Usage: php tests/v2-smoke.php
 require dirname(__DIR__) . '/installer/FlightStarterInstaller.php';
 
+if (!function_exists('env')) {
+    function env(string $key, mixed $default = null): mixed { return $default; }
+}
+
+
 function assertV2(bool $condition, string $message): void
 {
     if (!$condition) {
