@@ -134,8 +134,8 @@ final class Server
             // Do not expose raw unexpected exceptions or internal paths.
             $message = 'Tool execution failed';
             if (str_starts_with((string) $params['name'], 'dev_')
-                && ($exception instanceof \\InvalidArgumentException
-                    || $exception instanceof \\RuntimeException)) {
+                && ($exception instanceof \InvalidArgumentException
+                    || $exception instanceof \RuntimeException)) {
                 $message = substr($exception->getMessage(), 0, 300);
             }
             return $this->success($id, [
