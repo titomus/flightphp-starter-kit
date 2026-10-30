@@ -32,49 +32,53 @@ Se connecter sur http://localhost:8000/admin/login et ouvrir http://localhost:80
 - MCP : `catalog_list`, `catalog_preview_import`, `catalog_commit_import`.
 - Meme service PHP `App\Services\CatalogService` pour le web et le MCP.
 
-## MCP privé : connexion ChatGPT en lecture seule
+## Connexion à ChatGPT sans formulaire technique (OAuth DCR)
 
-Le MCP utilise désormais OAuth (code d'autorisation avec PKCE S256) et **non plus**
-le jeton partagé `MCP_BEARER_TOKEN`. Les paramètres suivants doivent être définis
-dans `.env` pour l'activer :
+Le serveur MCP utilise l'inscription dynamique des clients OAuth (**DCR**) :
+l'utilisateur n'a pas besoin de créer ni de saisir de Client ID, Client Secret
+ou callback URL. ChatGPT inscrit lui-même un client public, puis l'administrateur
+se connecte normalement et approuve les autorisations demandées.
 
-```dotenv
-MCP_OAUTH_CLIENT_ID=identifiant-client-prive
-MCP_OAUTH_CLIENT_SECRET=secret-client-prive-de-64-caracteres-ou-plus
-MCP_OAUTH_REDIRECT_URI=https://URL-EXACTE-DE-RAPPEL-CHATGPT
-```
+- URL MCP : `https://test-github.zootz.fr/mcp.php`
+- Authentification : OAuth, méthode d'inscription **Dynamic Client Registration (DCR)**
+- URL de découverte : `/.well-known/oauth-authorization-server`
+- Enregistrement : `POST /oauth/register`
+- Consentement : `/oauth/authorize`
+- Jetons et renouvellement : `/oauth/token`
 
-Les valeurs doivent être configurées sur le serveur, jamais dans le dépôt Git.
-Pour obtenir un identifiant et un secret aléatoires, exécuter deux fois
-`php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"` dans le Terminal cPanel.
-Ne communiquer ces secrets à personne et ne pas les afficher dans des captures.
+Seuls les callbacks HTTPS de `chatgpt.com` sur des chemins autorisés sont
+acceptés dans cette démonstration. L'administrateur doit approuver l'accès.
+Les codes d'autorisation sont liés à PKCE S256, expirent après cinq minutes
+et sont à usage unique ; les jetons sont hachés dans SQLite.
 
-**Le callback doit être l'URL exacte indiquée par le formulaire de connexion OAuth
-du plugin ChatGPT**, pas une adresse devinée. L'application refuse les redirections
-différentes de celle enregistrée.
+### Autorisations et outils MCP
 
-Les métadonnées publiques ne contiennent aucun secret :
-- `/.well-known/oauth-authorization-server` : découverte OAuth.
-- `/.well-known/oauth-protected-resource/mcp.php` : ressource protégée.
-- `/oauth/authorize` : écran d'autorisation réservée à un admin connecté.
-- `/oauth/token` : échange de jeton et renouvellement.
-- `/mcp.php` : endpoint MCP Streamable HTTP (réponses JSON et HTTP 405 pour GET SSE).
+| Permission | Outils |
+| --- | --- |
+| `catalog:read` | `catalog_list`, `catalog_preview_import` |
+| `catalog:write` | `catalog_commit_import` (nécessite `confirmed=true`) |
+| `app:evolve` | `app_request_change`, `app_get_change_request`, `app_list_change_requests` |
 
-Dans ChatGPT : Plugins > ajouter un serveur MCP personnalisé, URL
-`https://test-github.zootz.fr/mcp.php`, authentification OAuth avec
-les identifiants statiques ci-dessus, puis effectuer la connexion. Avant de
-valider, se connecter à `/admin/login` dans le navigateur et autoriser
-explicitement l'accès sur l'écran OAuth.
+`app_info` est disponible pour tout client authentifié.
 
-**Outils MCP disponibles :** `app_info`, `catalog_list`,
-`catalog_preview_import`. Aucun outil d'écriture MCP n'est publié :
-l'importation réelle se fait uniquement via le BackOffice avec confirmation.
-Les jetons d'accès expirent au bout d'une heure et les jetons de renouvellement
-sont révoqués après rotation, avec durée maximale de 30 jours.
+L'importation utilise exactement le même `CatalogService` que l'interface web.
+L'opération `app_request_change` **enregistre seulement une demande d'évolution**
+dans la base de données avec son identifiant. Ce n'est pas encore un développeur
+automatique. Un moteur de développement séparé devra récupérer la demande,
+travailler dans un bac à sable, ouvrir une revue et proposer une mise en ligne.
 
-La démo reste mono-tenant. Avant tout usage sur plusieurs comptes clients,
-il faudra ajouter un véritable fournisseur d'identité multi-tenant, une
-séparation des ressources, des scopes et des limites d'utilisation.
+**Aucun compte GitHub n'est nécessaire pour l'artisan.** Le code source
+est administré par le service qui fournit le SaaS, et non par son utilisateur.
+
+### Sécurité et limites de cette démonstration
+
+Il s'agit d'une **démo mono-tenant**. Ne pas l'ouvrir à des clients externes :
+les règles de quotas, de révocation des connexions, d'audit approfondi, de
+validation transactionnelle des imports, de rate limiting DCR et d'isolation
+multi-tenant restent à renforcer avant toute commercialisation.
+
+Le MCP public ne contient jamais d'outil d'exécution de commandes, d'édition
+arbitraire de fichiers, ni d'accès aux identifiants GitHub ou au déploiement.
 
 ## Architecture
 
