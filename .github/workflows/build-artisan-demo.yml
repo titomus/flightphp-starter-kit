@@ -61,8 +61,17 @@ jobs:
           test "$HTTP_CODE" = "302"
           echo "Unauthorized /catalog correctly redirects: HTTP $HTTP_CODE"
 
-      - name: Remove frontend dependency cache from artifact
-        run: rm -rf "$RUNNER_TEMP/atelier-catalogue/node_modules"
+      - name: Prepare clean cPanel deployment package
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/atelier-catalogue"
+          test ! -f .env
+          test -f public/.htaccess
+          test -f .env.example
+          rm -rf node_modules
+          rm -f app/storage/database.sqlite
+          # Keep runtime storage directories empty; SQLite is created by migrations on the server.
+          echo "Package ready for first-time cPanel installation"
 
       - name: Upload generated SaaS as artifact
         uses: actions/upload-artifact@v4
@@ -71,3 +80,4 @@ jobs:
           path: ${{ runner.temp }}/atelier-catalogue/
           retention-days: 14
           if-no-files-found: error
+          include-hidden-files: true
