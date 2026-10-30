@@ -20,56 +20,43 @@ $rowsSchema = [
             'stock' => ['type' => 'string'],
         ],
         'required' => ['reference', 'designation', 'prix_ht', 'stock'],
+        'additionalProperties' => false,
     ],
 ];
 
+// Read-only ChatGPT connection. The web admin keeps its existing confirmed
+// CSV import workflow, but MCP never exposes commit / delete / mutation tools.
 return [
     'app_info' => [
-        'description' => 'Informations sur le logiciel artisan.',
-        'inputSchema' => ['type' => 'object', 'properties' => new stdClass()],
+        'description' => 'Informations générales sur le logiciel artisan (lecture seule).',
+        'inputSchema' => [
+            'type' => 'object', 'properties' => new stdClass(), 'additionalProperties' => false,
+        ],
         'handler' => static fn (array $args): array => [
             'name' => 'Atelier Catalogue',
             'mcp_enabled' => true,
-            'mode' => 'single-tenant demo',
+            'access' => 'catalog:read',
         ],
     ],
     'catalog_list' => [
-        'description' => 'Liste les références existantes du catalogue.',
+        'description' => 'Lister les références du catalogue (lecture seule).',
         'inputSchema' => [
             'type' => 'object',
             'properties' => ['limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 500]],
+            'additionalProperties' => false,
         ],
         'handler' => static fn (array $args): array =>
             ['items' => $catalog()->listItems((int) ($args['limit'] ?? 200))],
     ],
     'catalog_preview_import' => [
-        'description' => 'Prévisualise les créations, mises à jour et erreurs d’un import de références, sans écrire.',
+        'description' => 'Prévisualiser les créations, modifications et erreurs pour un lot de références. N’écrit aucune donnée.',
         'inputSchema' => [
             'type' => 'object',
             'properties' => ['rows' => $rowsSchema],
             'required' => ['rows'],
+            'additionalProperties' => false,
         ],
         'handler' => static fn (array $args): array =>
             $catalog()->previewImport($args['rows'] ?? []),
-    ],
-    'catalog_commit_import' => [
-        'description' => 'Enregistre un import validé. Nécessite une confirmation explicite et le droit d’écriture MCP.',
-        'inputSchema' => [
-            'type' => 'object',
-            'properties' => [
-                'rows' => $rowsSchema,
-                'confirmed' => ['type' => 'boolean'],
-            ],
-            'required' => ['rows', 'confirmed'],
-        ],
-        'handler' => static function (array $args) use ($catalog): array {
-            if (env('MCP_ALLOW_WRITES', 'false') !== 'true') {
-                throw new RuntimeException('Écriture MCP désactivée');
-            }
-            if (($args['confirmed'] ?? false) !== true) {
-                throw new RuntimeException('Confirmation explicite nécessaire');
-            }
-            return $catalog()->commitImport($args['rows'] ?? []);
-        },
     ],
 ];
