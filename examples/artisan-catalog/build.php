@@ -74,6 +74,8 @@ $envContents .= <<<'ENV'
 # ChatGPT MCP: OAuth clients are registered automatically with PKCE.
 # No shared client ID, client secret or callback configuration is needed.
 # An authenticated administrator must approve each client and its scopes.
+# PRIVILEGED: enable only after reviewing the code deployment risks.
+ATELIER_CODE_UPDATES_ENABLED=false
 ENV;
 file_put_contents($envExample, rtrim($envContents) . "\n");
 $route = file_get_contents(__DIR__ . '/routes.php');
