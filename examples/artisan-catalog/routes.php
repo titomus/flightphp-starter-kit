@@ -25,8 +25,12 @@
 // These endpoints do not expose the business catalog without authorization.
 \Flight::route('GET /.well-known/oauth-authorization-server', [new \App\Controllers\McpOAuthController(), 'metadata']);
 \Flight::route('GET /.well-known/oauth-protected-resource', [new \App\Controllers\McpOAuthController(), 'protectedResource']);
-\Flight::route('GET /.well-known/oauth-protected-resource/mcp.php', [new \App\Controllers\McpOAuthController(), 'protectedResource']);
+\Flight::route('GET /.well-known/oauth-protected-resource/mcp', [new \App\Controllers\McpOAuthController(), 'protectedResource']);
 \Flight::route('GET /oauth/authorize', [new \App\Controllers\McpOAuthController(), 'authorize']);
 \Flight::route('POST /oauth/authorize', [new \App\Controllers\McpOAuthController(), 'authorize']);
 \Flight::route('POST /oauth/token', [new \App\Controllers\McpOAuthController(), 'token']);
 \Flight::route('POST /oauth/register', [new \App\Controllers\McpOAuthController(), 'register']);
+
+// Routed MCP endpoint avoids the hosting firewall blocking direct .php access.
+\Flight::route('GET /mcp', [new \App\Mcp\HttpEndpoint(), 'handle']);
+\Flight::route('POST /mcp', [new \App\Mcp\HttpEndpoint(), 'handle']);
