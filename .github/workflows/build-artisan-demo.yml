@@ -3,6 +3,8 @@ name: Build artisan mini SaaS
 on:
   push:
     branches: [demo/artisan-catalog]
+  pull_request:
+    branches: [feature/mcp-native]
 
 permissions:
   contents: read
