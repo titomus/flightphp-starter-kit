@@ -65,7 +65,27 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/web-distribution"
           unzip -q dist/flight-starter-runtime.zip -d "$RUNNER_TEMP/web-distribution"
-          php tests/web-installer-smoke.php "$RUNNER_TEMP/web-distribution" dist/flight-starter-runtime.zip
+          php tests/web-installer-smoke.php "$RUNNER_TEMP/web-distribution" dist/flight-starter-runtime.zip "$RUNNER_TEMP/web-http-site"
+
+      - name: Verify generated site on actual HTTP routes
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/web-http-site"
+          test -s "$APP/public/index.php"
+          sed -i 's#APP_URL=https://example.test#APP_URL=http://127.0.0.1:8768#' "$APP/.env"
+          cd "$APP"
+          php -S 127.0.0.1:8768 -t public public/router.php > "$RUNNER_TEMP/web-project-http.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true; cat "$RUNNER_TEMP/web-project-http.log" || true' EXIT
+          sleep 2
+          curl -fsS http://127.0.0.1:8768/api/health | jq -e '.status == "ok"'
+          curl -fsS http://127.0.0.1:8768/admin/login | grep -q 'Admin login'
+          curl -fsS http://127.0.0.1:8768/.well-known/oauth-authorization-server | jq -e '.registration_endpoint == "http://127.0.0.1:8768/oauth/register"'
+          JS=$(php -r '$m=json_decode(file_get_contents("public/build/manifest.json"),true);echo $m["resources/js/app.js"]["file"];')
+          CSS=$(php -r '$m=json_decode(file_get_contents("public/build/manifest.json"),true);echo $m["resources/js/app.js"]["css"][0];')
+          test -n "$JS" && test -n "$CSS"
+          curl -fsS "http://127.0.0.1:8768/build/$JS" > /dev/null
+          curl -fsS "http://127.0.0.1:8768/build/$CSS" > /dev/null
 
       - name: Publish downloadable test files
         uses: actions/upload-artifact@v4
