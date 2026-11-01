@@ -227,7 +227,8 @@ header('Cache-Control: no-store, max-age=0');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: no-referrer');
-header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+$flightNonce = base64_encode(random_bytes(18));
+header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-" . $flightNonce . "'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
 if (PHP_SAPI === 'cli') {
     fwrite(STDERR, "Place install.php inside the site's /public document root, then open it over HTTPS.\n");
     exit(1);
@@ -380,5 +381,31 @@ $form = '<p>Choisissez une base de départ. Les fonctionnalités métier pourron
     . '<label>Jeton GitHub temporaire<input type="password" name="github_token" required autocomplete="new-password"></label>'
     . '<button type="submit">Installer mon application ↗</button><p><small>PHP 8.2+, SQLite, cURL, ZIP, domaine HTTPS et racine /public requis. '
     . 'Aucun Node.js ni Composer sur cet hébergement.</small></p></section></form>';
+
+// Convenience only: the server validates all dependencies independently.
+$enhancement = <<<'JS'
+(() => {
+  const type = document.querySelector('select[name="type"]');
+  const members = document.querySelector('input[type="checkbox"][name="members"]');
+  const mcp = document.querySelector('input[type="checkbox"][name="mcp"]');
+  const stripe = document.querySelector('input[type="checkbox"][name="stripe"]');
+  if (!type || !members || !mcp || !stripe) return;
+  function syncBilling() {
+    if (!members.checked) stripe.checked = false;
+    stripe.disabled = !members.checked;
+    stripe.closest('label').style.opacity = members.checked ? '1' : '.52';
+  }
+  type.addEventListener('change', () => {
+    const business = type.value === 'saas' || type.value === 'outil_metier';
+    members.checked = business;
+    mcp.checked = business;
+    stripe.checked = false;
+    syncBilling();
+  });
+  members.addEventListener('change', syncBilling);
+  syncBilling();
+})();
+JS;
+$form .= '<script nonce="' . h($flightNonce) . '">' . $enhancement . '</script>';
 
 displayPage('Créons votre application.', $form);
