@@ -262,12 +262,23 @@ $csrf = $_SESSION['flight_csrf'];
 $accessFile = $root . '/.flight-install-access';
 if (is_link($accessFile)) problem('Secret d’installation invalide.');
 if (!is_file($accessFile)) {
-    $secret = bin2hex(random_bytes(24));
-    if (file_put_contents($accessFile, $secret, LOCK_EX) === false) {
+    // Exclusive creation prevents concurrent first visits overwriting
+    // one another's one-time access key.
+    $handle = @fopen($accessFile, 'x');
+    if ($handle !== false) {
+        $secret = bin2hex(random_bytes(24));
+        try {
+            if (fwrite($handle, $secret) !== strlen($secret)) {
+                problem('Impossible de créer le secret d’installation.');
+            }
+        } finally {
+            fclose($handle);
+            unset($secret);
+        }
+        chmod($accessFile, 0600);
+    } elseif (!is_file($accessFile)) {
         problem('Impossible de créer le secret d’installation.');
     }
-    chmod($accessFile, 0600);
-    unset($secret);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
