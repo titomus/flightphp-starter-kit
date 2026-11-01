@@ -50,6 +50,45 @@ foreach ([
 }
 echo "[OK] Invalid settings rejected\n";
 
+// Exercise actual generator feature switches rather than only validating form
+// options. Non-MCP websites must not expose OAuth endpoints.
+$baseConfig = require dirname(__DIR__) . '/installer/config.php';
+foreach ([
+    ['type' => 'saas', 'mcp' => '1', 'members' => '1'],
+    ['type' => 'outil_metier', 'mcp' => '0', 'members' => '1'],
+    ['type' => 'blog', 'mcp' => '0', 'members' => '0'],
+    ['type' => 'site_vitrine', 'mcp' => '1', 'members' => '0'],
+] as $variation) {
+    $parameters = array_merge([
+        'project_name' => 'Test ' . $variation['type'],
+        'base_url' => 'https://example.test',
+        'admin_email' => 'owner@example.test',
+        'admin_password' => $password,
+        'password_confirm' => $password,
+        'stripe' => '0',
+    ], $variation);
+    $validated = WebInstallRecipe::validate($parameters);
+    $rootPreview = sys_get_temp_dir() . '/flight-recipe-' . bin2hex(random_bytes(6));
+    mkdir($rootPreview . '/public', 0700, true);
+    try {
+        $cfg = WebInstallRecipe::apply($baseConfig, $validated, $rootPreview);
+        $options = InstallerOptions::fromArgv(['install', '--dry-run']);
+        $flags = InstallerFeatures::fromConfig($cfg, $options);
+        $blueprint = new ProjectBlueprint($cfg, $rootPreview, $flags, new TemplateCatalog($flags));
+        $files = $blueprint->files();
+        expectWeb(
+            isset($files[$rootPreview . '/app/routes/mcp.php']) === ($variation['mcp'] === '1'),
+            'MCP generated only when enabled: ' . $variation['type']
+        );
+        expectWeb(
+            $cfg['frontend_auth']['enabled'] === ($variation['members'] === '1'),
+            'Member sign-in matches recipe: ' . $variation['type']
+        );
+    } finally {
+        WebInstallEngine::removeDirectory($rootPreview);
+    }
+}
+
 $bundle = $argv[1] ?? null;
 if (!is_string($bundle) || !is_dir($bundle)) {
     echo "Recipe checks PASS. Supply unpacked GitHub distribution to test a full installation.\n";
