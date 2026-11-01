@@ -24,6 +24,7 @@ for preset in saas outil_metier blog; do
     $config["project_name"] = "Flight Distribution";
     $config["base_url"] = "https://example.test";
     $config["design"]["preset"] = getenv("FS_PRESET");
+    $config["frontend"]["build_dir"] = "build";
     $config["backoffice"]["default_email"] = "distribution@example.test";
     $config["backoffice"]["default_password"] = "BUILD_ONLY_RANDOM_1234567890_TEST";
     $config["composer"]["auto_install"] = false;
