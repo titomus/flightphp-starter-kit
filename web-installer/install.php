@@ -132,9 +132,16 @@ function expandSafeZip(string $zipFile, string $folder): void
             $stat = $archive->statIndex($i);
             if (!$stat) problem('Index ZIP illisible.');
             $name = (string) $stat['name'];
-            if (strlen($name) > 260 || str_contains($name, "\\") || str_contains($name, "\0")
-                || str_starts_with($name, '/') || preg_match('~(^|/)\.{1,2}(/|$)~D', $name)
-                || !preg_match('~^(?:installer|runtime)/[A-Za-z0-9_./@+ -]+$~D', $name)) {
+            // Composer bundles may legitimately contain parentheses, tildes
+            // and paths longer than 260 bytes. Validate path *structure*,
+            // not a brittle filename alphabet.
+            if (strlen($name) > 1024
+                || str_contains($name, "\\")
+                || preg_match('~[\x00-\x1f\x7f]~', $name)
+                || str_starts_with($name, '/')
+                || preg_match('~(^|/)\.{1,2}(/|$)~', $name)
+                || !preg_match('~^(?:installer|runtime)/[^/].*$~D', $name)
+                || preg_match('~(?:^|/)[^/]*[:*?"<>|][^/]*(?:/|$)~', $name)) {
                 problem('Chemin dangereux dans la distribution.');
             }
             $size += (int) $stat['size'];
