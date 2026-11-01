@@ -79,8 +79,16 @@ jobs:
           trap 'kill "$SERVER_PID" || true; cat "$RUNNER_TEMP/web-project-http.log" || true' EXIT
           sleep 2
           curl -fsS http://127.0.0.1:8768/api/health | jq -e '.status == "ok"'
-          curl -fsS http://127.0.0.1:8768/admin/login | grep -q 'Admin login'
-          curl -fsS http://127.0.0.1:8768/.well-known/oauth-authorization-server | jq -e '.registration_endpoint == "http://127.0.0.1:8768/oauth/register"'
+          echo "MCP ROUTES REGISTERED:"
+          php -r 'define("APP_CONTEXT","web"); require "app/bootstrap.php"; foreach (\Flight::router()->getRoutes() as $r) { if (str_contains($r->pattern,"oauth") || $r->pattern === "/mcp") echo $r->pattern . PHP_EOL; }'
+          echo "ADMIN HTTP:"
+          curl -sS -o "$RUNNER_TEMP/web-admin.html" -w '%{http_code}\n' http://127.0.0.1:8768/admin/login
+          grep -q 'Admin login' "$RUNNER_TEMP/web-admin.html"
+          echo "OAUTH HTTP:"
+          curl -sS -o "$RUNNER_TEMP/web-oauth.json" -w '%{http_code}\n' http://127.0.0.1:8768/.well-known/oauth-authorization-server
+          head -c 400 "$RUNNER_TEMP/web-oauth.json"
+          echo
+          jq -e '.registration_endpoint == "http://127.0.0.1:8768/oauth/register"' "$RUNNER_TEMP/web-oauth.json"
           JS=$(php -r '$m=json_decode(file_get_contents("public/build/manifest.json"),true);echo $m["resources/js/app.js"]["file"];')
           CSS=$(php -r '$m=json_decode(file_get_contents("public/build/manifest.json"),true);echo $m["resources/js/app.js"]["css"][0];')
           test -n "$JS" && test -n "$CSS"
