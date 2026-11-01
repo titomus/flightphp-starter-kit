@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/installer/WebInstallEngine.php';
 
+// The web installer always opens a session before rendering HTML.
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 function expectWeb(bool $value, string $message): void
 {
     if (!$value) throw new RuntimeException('FAILED: ' . $message);
@@ -34,6 +39,9 @@ foreach ([
     ['admin_email'=>'notanemail'],
     ['admin_password'=>'short', 'password_confirm'=>'short'],
     ['members'=>'0', 'stripe'=>'1'],
+    ['project_name' => "Client'; phpinfo(); //"],
+    ['admin_email' => "o'connor@example.test"],
+    ['admin_password' => "Password'Injection2026!", 'password_confirm' => "Password'Injection2026!"],
 ] as $override) {
     $valid = [
         'type' => 'saas', 'project_name' => 'Client',
