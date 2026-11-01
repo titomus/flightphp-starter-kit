@@ -140,7 +140,7 @@ function expandSafeZip(string $zipFile, string $folder): void
                 || preg_match('~[\x00-\x1f\x7f]~', $name)
                 || str_starts_with($name, '/')
                 || preg_match('~(^|/)\.{1,2}(/|$)~', $name)
-                || !preg_match('~^(?:installer|runtime)/[^/].*$~D', $name)
+                || !preg_match('~^(?:installer|runtime)/(?:[^/].*)?$~D', $name)
                 || preg_match('~(?:^|/)[^/]*[:*?"<>|][^/]*(?:/|$)~', $name)) {
                 problem('Chemin dangereux dans la distribution.');
             }
