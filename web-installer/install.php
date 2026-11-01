@@ -209,6 +209,12 @@ CSS;
     exit;
 }
 
+// Expose pure archive/extraction helpers to the installation smoke tests.
+// This cannot be toggled by an HTTP request: the constant is PHP-process-local.
+if (defined('FLIGHT_INSTALLER_LIBRARY_ONLY') && FLIGHT_INSTALLER_LIBRARY_ONLY === true) {
+    return;
+}
+
 header('Cache-Control: no-store, max-age=0');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
