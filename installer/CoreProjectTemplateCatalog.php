@@ -365,6 +365,12 @@ if ($path !== '/' && is_file($file)) {
     return false;
 }
 
+// PHP's built-in server can set SCRIPT_NAME to a synthetic route path,
+// notably under /.well-known. Tell FlightPHP the real front controller,
+// otherwise its base-path detection can strip the OAuth prefix.
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+
 require __DIR__ . '/index.php';
 PHP;
     }
