@@ -42,6 +42,9 @@ jobs:
           php tests/web-installer-smoke.php
           php tests/v2-smoke.php
 
+      - name: Test HTTP installer session, unlock and CSRF
+        run: bash tests/web-installer-http.sh
+
       - name: Build precompiled distributions for 3 themes
         run: bash scripts/build-web-distribution.sh "$GITHUB_WORKSPACE/dist"
 
