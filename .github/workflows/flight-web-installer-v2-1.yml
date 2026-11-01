@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/web-distribution"
           unzip -q dist/flight-starter-runtime.zip -d "$RUNNER_TEMP/web-distribution"
-          php tests/web-installer-smoke.php "$RUNNER_TEMP/web-distribution"
+          php tests/web-installer-smoke.php "$RUNNER_TEMP/web-distribution" dist/flight-starter-runtime.zip
 
       - name: Publish downloadable test files
         uses: actions/upload-artifact@v4
