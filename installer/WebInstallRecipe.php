@@ -36,17 +36,23 @@ final class WebInstallRecipe
         $mcp = self::flag($data, 'mcp', $defaults['mcp']);
         $stripe = self::flag($data, 'stripe', false);
 
-        if ($name === '' || mb_strlen($name) > 80 || preg_match('/[<>{}\x00-\x1f]/u', $name)) {
+        // Values are also embedded into older generated PHP templates and .env.
+        // Restrict metacharacters until all templates escape each context.
+        if ($name === '' || mb_strlen($name) > 80
+            || !preg_match('/^[\\p{L}\\p{N}][\\p{L}\\p{N} ._-]*$/uD', $name)) {
             throw new InvalidArgumentException('Nom du projet invalide (1 à 80 caractères).');
         }
         if (!self::httpsUrl($url)) {
             throw new InvalidArgumentException('Adresse HTTPS valide obligatoire, sans chemin ni paramètres.');
         }
-        if (strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL)
+            || !preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,24}$/D', $email)) {
             throw new InvalidArgumentException('Adresse email du propriétaire invalide.');
         }
-        if (strlen($password) < 16 || strlen($password) > 256 || $password !== $passwordConfirm) {
-            throw new InvalidArgumentException('Mot de passe propriétaire de 16 caractères minimum et confirmation identique.');
+        if (strlen($password) < 16 || strlen($password) > 256
+            || !preg_match('/^[A-Za-z0-9@!_.+\\-]+$/D', $password)
+            || $password !== $passwordConfirm) {
+            throw new InvalidArgumentException('Mot de passe de 16+ caractères (lettres, chiffres, @ ! _ . + -), et confirmation identique.');
         }
         if (in_array(strtolower($password), ['password12345678','admin123456789012','changeme123456789'], true)) {
             throw new InvalidArgumentException('Choisissez un mot de passe unique.');
@@ -123,6 +129,13 @@ final class WebInstallRecipe
         if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['https'], true)
             || !isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])
             || isset($parts['query']) || isset($parts['fragment'])) {
+            return false;
+        }
+        // Avoid malformed hostnames reaching generated PHP or OAuth issuer.
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$/D', (string) $parts['host'])) {
+            return false;
+        }
+        if (isset($parts['port']) && ($parts['port'] < 1 || $parts['port'] > 65535)) {
             return false;
         }
         return ($parts['path'] ?? '') === '' || $parts['path'] === '/';
