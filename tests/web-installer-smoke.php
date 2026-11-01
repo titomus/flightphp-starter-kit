@@ -56,6 +56,34 @@ if (!is_string($bundle) || !is_dir($bundle)) {
     exit(0);
 }
 
+$zipFile = $argv[2] ?? null;
+if (is_string($zipFile) && is_file($zipFile)) {
+    define('FLIGHT_INSTALLER_LIBRARY_ONLY', true);
+    require dirname(__DIR__) . '/web-installer/install.php';
+    $extracted = sys_get_temp_dir() . '/flight-unzip-test-' . bin2hex(random_bytes(6));
+    mkdir($extracted, 0700, true);
+    try {
+        expandSafeZip($zipFile, $extracted);
+        expectWeb(is_file($extracted . '/runtime/vendor/autoload.php'), 'Web bootstrap extracts the real vendor ZIP');
+        expectWeb(is_file($extracted . '/installer/WebInstallEngine.php'), 'Web bootstrap extracts generator securely');
+        $bad = sys_get_temp_dir() . '/flight-bad-zip-' . bin2hex(random_bytes(6)) . '.zip';
+        $archive = new ZipArchive();
+        $archive->open($bad, ZipArchive::CREATE);
+        $archive->addFromString('installer/../../../escape.php', '<?php echo 1;');
+        $archive->close();
+        try {
+            expandSafeZip($bad, $extracted);
+            throw new RuntimeException('Archive traversal attack was accepted.');
+        } catch (RuntimeException $e) {
+            expectWeb(str_contains($e->getMessage(), 'Chemin dangereux'), 'ZIP traversal forbidden');
+        } finally {
+            unlink($bad);
+        }
+    } finally {
+        WebInstallEngine::removeDirectory($extracted);
+    }
+}
+
 $root = sys_get_temp_dir() . '/flight-web-install-' . bin2hex(random_bytes(6));
 mkdir($root . '/public', 0700, true);
 try {
