@@ -98,6 +98,7 @@ final class WebInstallRecipe
             'backoffice' => true,
             'frontend' => true,
         ];
+        $config['frontend']['build_dir'] = 'build';
         $config['frontend']['vite'] = true;
         $config['frontend']['tailwind'] = true;
         $config['frontend']['htmx'] = true;
