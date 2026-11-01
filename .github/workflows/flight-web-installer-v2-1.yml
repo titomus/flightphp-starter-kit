@@ -1,0 +1,89 @@
+name: Flight Starter Kit 2.1 web installer
+
+on:
+  push:
+    branches:
+      - feature/web-installer-v2-1
+    tags:
+      - 'v2.1.*'
+  pull_request:
+    branches:
+      - main
+      - feature/flight-starter-v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-installer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.3 + required extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, zip, curl, openssl, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Static validation and recipe checks
+        run: |
+          set -euo pipefail
+          php -v
+          find installer web-installer tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php tests/web-installer-smoke.php
+          php tests/v2-smoke.php
+
+      - name: Build precompiled distributions for 3 themes
+        run: bash scripts/build-web-distribution.sh "$GITHUB_WORKSPACE/dist"
+
+      - name: Validate archive paths and bundled private runtime
+        run: |
+          set -euo pipefail
+          test -s dist/flight-starter-runtime.zip
+          test -s dist/flight-starter-runtime.zip.sha256
+          cd dist
+          sha256sum -c flight-starter-runtime.zip.sha256
+          unzip -t flight-starter-runtime.zip | tail -n 2
+          test "$(unzip -Z1 flight-starter-runtime.zip | grep -c '^runtime/build/.*/manifest.json$')" -eq 3
+          unzip -Z1 flight-starter-runtime.zip | grep -q '^runtime/vendor/autoload.php$'
+          ! unzip -Z1 flight-starter-runtime.zip | grep -Eq '(^|/)(node_modules|\.env)(/|$)'
+
+      - name: Full CLI integration on clean project
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/web-distribution"
+          unzip -q dist/flight-starter-runtime.zip -d "$RUNNER_TEMP/web-distribution"
+          php tests/web-installer-smoke.php "$RUNNER_TEMP/web-distribution"
+
+      - name: Publish downloadable test files
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-starter-web-v2-1
+          path: |
+            web-installer/install.php
+            dist/flight-starter-runtime.zip
+            dist/flight-starter-runtime.zip.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Release GitHub distribution for explicit version tag
+        if: startsWith(github.ref, 'refs/tags/v2.1.')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/flight-starter-runtime.zip \
+            dist/flight-starter-runtime.zip.sha256 \
+            web-installer/install.php \
+            --title "Flight Starter Kit $GITHUB_REF_NAME" \
+            --notes "Web installer preview. Requires PHP 8.2+, HTTPS, a clean /public document root, and a verified release SHA-256." \
+            --prerelease
