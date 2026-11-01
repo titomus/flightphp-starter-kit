@@ -1,5 +1,17 @@
 # Flight Starter Kit 2.0 (bêta)
 
+## Nouveau : installation web en un seul fichier (v2.1 bêta)
+
+Le nouveau **configurateur d'installation** est développé sur la branche `feature/web-installer-v2-1`.
+Déposer `web-installer/install.php` dans le document root `public/` d'un projet neuf, déverrouiller l'installation avec le secret privé et choisir dans le navigateur : SaaS, outil métier, blog ou site vitrine, puis les modules membres, MCP et Stripe.
+
+Le kit génère le projet sur l'hébergement à partir d'un **ZIP GitHub Release vérifié par SHA-256**, avec les dépendances Composer et les thèmes Vite déjà compilés dans GitHub Actions. Pas de Node ou Composer côté hébergeur.
+
+**Attention :** la distribution beta doit être publiée sous un tag versionné avant que le téléchargement depuis GitHub Release fonctionne. Le support SQLite est prioritaire. Les presets Blog/Vitrine sont pour l'instant des squelettes avec un thème, pas des CMS finalisés.
+
+[Documentation de l'installateur web](docs/WEB_INSTALLER_V2_1.md) · [Source du fichier unique](web-installer/install.php) · [Tests du configurateur](tests/web-installer-smoke.php)
+
+
 Installer configurable pour generer une application Flight PHP complete: MVC, auth, backoffice, queue, Stripe, OAuth, SEO, email, Vite, Tailwind, HTMX, AlpineJS et design presets.
 
 Le but du projet est de partir d'un seul dossier d'installation, d'ajuster `installer/config.php`, puis de generer une base d'application directement exploitable sans recoller les memes fondations a chaque nouveau projet.
