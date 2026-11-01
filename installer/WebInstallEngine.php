@@ -108,12 +108,19 @@ final class WebInstallEngine
             // console migrator runs inside the same PHP request.
             require $stage . '/app/bootstrap.php';
             $db = \App\Services\Database::connection();
-            (new \App\Services\Migrator($db))->migrate();
-            $seed = require $stage . '/app/Database/Seeds/DatabaseSeeder.php';
-            if (!is_callable($seed)) {
-                throw new RuntimeException('Seeder applicatif manquant.');
+            // Migrations and seeders print CLI progress. Do not leak that
+            // output into the installer's HTML or break HTTP headers.
+            ob_start();
+            try {
+                (new \App\Services\Migrator($db))->migrate();
+                $seed = require $stage . '/app/Database/Seeds/DatabaseSeeder.php';
+                if (!is_callable($seed)) {
+                    throw new RuntimeException('Seeder applicatif manquant.');
+                }
+                $seed($db);
+            } finally {
+                ob_end_clean();
             }
-            $seed($db);
             if (!(int) $db->query('SELECT COUNT(*) FROM admin_users')->fetchColumn()) {
                 throw new RuntimeException('Le propriétaire n’a pas été créé.');
             }
@@ -144,11 +151,9 @@ final class WebInstallEngine
                 'features' => $meta,
             ];
         } finally {
-            // When a staging failure occurs, retain only the private stage for
-            // investigation; never expose it via the public document root.
-            if ($completed) {
-                self::removeDirectory($stage);
-            }
+            // Never retain a failed stage: it can contain the temporary
+            // cleartext password before the seed-redaction phase.
+            self::removeDirectory($stage);
         }
     }
 
