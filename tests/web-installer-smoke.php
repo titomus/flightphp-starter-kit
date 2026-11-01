@@ -84,7 +84,15 @@ if (is_string($zipFile) && is_file($zipFile)) {
     }
 }
 
-$root = sys_get_temp_dir() . '/flight-web-install-' . bin2hex(random_bytes(6));
+// Optional fourth argument keeps the generated project so CI can start
+// a real HTTP server and verify the newly installed site routes.
+$keptRoot = isset($argv[3]) && is_string($argv[3]) && $argv[3] !== '';
+$root = $keptRoot
+    ? $argv[3]
+    : sys_get_temp_dir() . '/flight-web-install-' . bin2hex(random_bytes(6));
+if ($keptRoot && (file_exists($root) || is_link($root))) {
+    throw new RuntimeException('The HTTP test target already exists.');
+}
 mkdir($root . '/public', 0700, true);
 try {
     $config = [
@@ -131,5 +139,7 @@ try {
     }
     echo "Web installer production-bundle integration: PASS\n";
 } finally {
-    WebInstallEngine::removeDirectory($root);
+    if (!$keptRoot) {
+        WebInstallEngine::removeDirectory($root);
+    }
 }
