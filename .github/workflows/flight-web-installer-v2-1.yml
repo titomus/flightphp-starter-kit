@@ -3,14 +3,20 @@ name: Flight Starter Kit 2.1 web installer
 on:
   push:
     branches:
+      - main
       - feature/web-installer-v2-1
     tags:
-      - 'v2.1.*'
+      - 'v2.1.*-beta.*'
   pull_request:
     branches:
       - main
       - feature/flight-starter-v2
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Nouvelle version de prépublication (ex. v2.1.0-beta.1)"
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -107,8 +113,9 @@ jobs:
           if-no-files-found: error
 
 
+
   release:
-    if: startsWith(github.ref, 'refs/tags/v2.1.')
+    if: startsWith(github.ref, 'refs/tags/v2.1.') || github.event_name == 'workflow_dispatch'
     needs: web-installer
     runs-on: ubuntu-latest
     permissions:
@@ -118,15 +125,35 @@ jobs:
         with:
           name: flight-starter-web-v2-1
           path: release-files
-      - name: Publish prerelease only after passing tests
+      - name: Publish a reviewed beta version, not a stable
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          REF: ${{ github.ref }}
+          COMMIT: ${{ github.sha }}
+          REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          set -euo pipefail
+          if [[ "$REF" == refs/heads/* ]]; then
+            test "$REF" = "refs/heads/main" || {
+              echo "Choose main when publishing through Run workflow."
+              exit 1
+            }
+          fi
+          [[ "$VERSION" =~ ^v2\.1\.[0-9]+-beta\.[0-9]+$ ]] || {
+            echo "Expected v2.1.X-beta.Y, never a stable version automatically."
+            exit 1
+          }
+          if gh release view "$VERSION" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release version already exists; choose a new one."
+            exit 1
+          fi
+          gh release create "$VERSION" \
             release-files/dist/flight-starter-runtime.zip \
             release-files/dist/flight-starter-runtime.zip.sha256 \
             release-files/web-installer/install.php \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Flight Starter Kit $GITHUB_REF_NAME" \
-            --notes "Preview web installer. Requires PHP 8.2+, HTTPS, a clean /public document root and a release SHA-256." \
+            --repo "$REPO" \
+            --target "$COMMIT" \
+            --title "Flight Starter Kit $VERSION (bêta technique)" \
+            --notes "Préversion de l'installateur web. Ne pas utiliser en production avant validation réelle sur l'hébergement cible. PHP 8.2+, HTTPS et document root public/ requis." \
             --prerelease
