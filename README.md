@@ -1,8 +1,18 @@
-# Flight Starter Kit 2.0 (bêta)
+# Flight Starter Kit 2.1 (bêta)
+
+## Télécharger la bonne version
+
+**Pour un utilisateur qui souhaite installer le kit :** consulter les [versions publiées (Releases)](https://github.com/titomus/flightphp-starter-kit/releases). Chaque version installable doit contenir `install.php`, `flight-starter-runtime.zip` (dépendances incluses) et son empreinte SHA-256.
+
+**Pour consulter le code :** la branche `main` est la référence. Le bouton GitHub **Code → Download ZIP** récupère les sources, **pas** une distribution précompilée installable en un seul fichier.
+
+**Pour développer :** les branches `feature/...` et `demo/...` ne sont pas des versions destinées aux abonnés.
+
+⚠️ **Bêta technique :** les installations sur hébergement mutualisé et la compatibilité des modules métier restent à valider. Aucune Release stable n'est publiée tant que ces tests réels ne sont pas réussis. [Procédure de publication](docs/PUBLICATION.md).
 
 ## Nouveau : installation web en un seul fichier (v2.1 bêta)
 
-Le nouveau **configurateur d'installation** est développé sur la branche `feature/web-installer-v2-1`.
+Le nouveau **configurateur d'installation** est inclus dans le Starter Kit.
 Déposer `web-installer/install.php` dans le document root `public/` d'un projet neuf, déverrouiller l'installation avec le secret privé et choisir dans le navigateur : SaaS, outil métier, blog ou site vitrine, puis les modules membres, MCP et Stripe.
 
 Le kit génère le projet sur l'hébergement à partir d'un **ZIP GitHub Release vérifié par SHA-256**, avec les dépendances Composer et les thèmes Vite déjà compilés dans GitHub Actions. Pas de Node ou Composer côté hébergeur.
