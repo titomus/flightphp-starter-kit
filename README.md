@@ -71,12 +71,12 @@ dans l'atelier.
 - Test de génération et rollback : `php tests/v2-smoke.php`
 - Test d'installation et HTTP : GitHub Actions `Flight Starter Kit v2 reusable install`
 
-Pour tester cette **branche bêta** avant sa publication sur `main` :
+Pour tester **la version bêta disponible sur `main`** depuis les sources :
 
 ```bash
 git clone https://github.com/titomus/flightphp-starter-kit.git my-project
 cd my-project
-git switch feature/flight-starter-v2
+# main est désormais la branche par défaut et contient la v2.1 bêta
 # Configurer un mot de passe administrateur unique et le domaine dans installer/config.php
 php install-flight-starter.php
 ```
