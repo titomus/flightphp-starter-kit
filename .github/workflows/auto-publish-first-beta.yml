@@ -1,0 +1,45 @@
+name: Publish first Flight Starter Kit beta after verified installer CI
+
+on:
+  workflow_run:
+    workflows: ["Flight Starter Kit 2.1 web installer"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-first-beta:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Publish v2.1.0-beta.1 from CI-tested files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          VERSION=v2.1.0-beta.1
+          if gh release view "$VERSION" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Beta release already exists. Nothing to republish."
+            exit 0
+          fi
+          mkdir -p release-assets
+          gh run download "$RUN_ID" --repo "$REPO" \
+            --name flight-starter-web-v2-1 --dir release-assets
+          cd release-assets/dist
+          sha256sum -c flight-starter-runtime.zip.sha256
+          unzip -t flight-starter-runtime.zip >/dev/null
+          test -s ../web-installer/install.php
+          gh release create "$VERSION" \
+            flight-starter-runtime.zip \
+            flight-starter-runtime.zip.sha256 \
+            ../web-installer/install.php \
+            --repo "$REPO" --target "$SHA" \
+            --title "Flight Starter Kit $VERSION (bêta technique)" \
+            --notes "Préversion de test. Installateur web PHP et distribution précompilée avec empreinte SHA-256. À valider sur l'hébergement cible avant utilisation en production." \
+            --prerelease
