@@ -2,7 +2,7 @@
 
 ## Télécharger la bonne version
 
-**Pour un utilisateur qui souhaite installer le kit :** consulter les [versions publiées (Releases)](https://github.com/titomus/flightphp-starter-kit/releases). Chaque version installable doit contenir `install.php`, `flight-starter-runtime.zip` (dépendances incluses) et son empreinte SHA-256.
+**Pour installer :** la [bêta v2.1.0-beta.1](https://github.com/titomus/flightphp-starter-kit/releases/tag/v2.1.0-beta.1) est publiée. Télécharger [install.php](https://github.com/titomus/flightphp-starter-kit/releases/download/v2.1.0-beta.1/install.php) et le [runtime précompilé](https://github.com/titomus/flightphp-starter-kit/releases/download/v2.1.0-beta.1/flight-starter-runtime.zip), avec son empreinte SHA-256 sur la page de Release.
 
 **Pour consulter le code :** la branche `main` est la référence. Le bouton GitHub **Code → Download ZIP** récupère les sources, **pas** une distribution précompilée installable en un seul fichier.
 
@@ -17,7 +17,7 @@ Déposer `web-installer/install.php` dans le document root `public/` d'un projet
 
 Le kit génère le projet sur l'hébergement à partir d'un **ZIP GitHub Release vérifié par SHA-256**, avec les dépendances Composer et les thèmes Vite déjà compilés dans GitHub Actions. Pas de Node ou Composer côté hébergeur.
 
-**Attention :** la distribution beta doit être publiée sous un tag versionné avant que le téléchargement depuis GitHub Release fonctionne. Le support SQLite est prioritaire. Les presets Blog/Vitrine sont pour l'instant des squelettes avec un thème, pas des CMS finalisés.
+**Attention :** la distribution bêta est désormais disponible sur GitHub Releases. Le support SQLite est prioritaire. Les presets Blog/Vitrine sont pour l'instant des squelettes avec un thème, pas des CMS finalisés.
 
 [Documentation de l'installateur web](docs/WEB_INSTALLER_V2_1.md) · [Source du fichier unique](web-installer/install.php) · [Tests du configurateur](tests/web-installer-smoke.php)
 
