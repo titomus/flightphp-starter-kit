@@ -1,6 +1,6 @@
 # Flight Starter Kit 2.1 : installation par formulaire
 
-État : **bêta sur feature/web-installer-v2-1**, à tester sur un hébergement de démonstration avant tout client réel.
+État : **bêta intégrée dans main**, à tester sur un hébergement de démonstration avant tout client réel.
 
 ## Une seule entrée
 
@@ -47,7 +47,7 @@ Options indépendantes : comptes membres, MCP, Stripe. Stripe nécessite des com
 
 La CI fabrique une archive nommée « flight-starter-runtime.zip » contenant les répertoires installer/, runtime/vendor/ et runtime/build/saas/, outil_metier/, blog/. Elle génère également le fichier « flight-starter-runtime.zip.sha256 » et publie les artefacts de test dans GitHub Actions.
 
-Une **branche de développement ou un artefact Actions ne suffisent pas** : pour que le bootstrap télécharge depuis l'API Release GitHub, il faut une release publiée avec le ZIP et une empreinte officielle. Le tag prévu est v2.1.0 après validation.
+Une **branche de développement ou un artefact Actions ne suffisent pas** : pour que le bootstrap télécharge depuis l'API Release GitHub, il faut une release publiée avec le ZIP et une empreinte officielle. Le premier tag de bêta utilisera une version de type v2.1.0-beta.1 ; la version v2.1.0 stable attend les tests réels.
 
 ### Vérifications après installation
 
