@@ -50,6 +50,17 @@ final class FlightStarterInstaller
         }
 
         $this->printHeader();
+        // MCP code development always belongs to a real administrator account.
+        if ($this->features->mcp && !$this->features->backoffice) {
+            throw new RuntimeException('MCP 2.0 requires the administrator backoffice; enable backoffice or disable MCP.');
+        }
+        if ($this->features->mcp) {
+            $password = (string) ($this->config['backoffice']['default_password'] ?? '');
+            if (strlen($password) < 16 || in_array(strtolower($password), ['admin123', 'password12345678'], true)
+                || str_contains(strtoupper($password), 'CHANGE_ME')) {
+                throw new RuntimeException('MCP 2.0 requires a unique strong admin seed password (16+ characters) before installation.');
+            }
+        }
         $this->guardTargetDirectory();
 
         foreach ($this->blueprint->directories() as $directory) {
@@ -90,6 +101,7 @@ final class FlightStarterInstaller
         echo 'Namespace: ' . $this->config['namespace'] . PHP_EOL;
         echo 'BackOffice: ' . ($this->features->backoffice ? 'enabled' : 'disabled') . PHP_EOL;
         echo 'Frontend: ' . ($this->features->frontend ? 'enabled' : 'disabled') . PHP_EOL;
+        echo 'MCP: ' . ($this->features->mcp ? 'enabled' : 'disabled') . PHP_EOL;
         echo 'Mode: ' . ($this->options->dryRun ? 'dry-run' : 'write') . PHP_EOL;
         echo PHP_EOL;
     }

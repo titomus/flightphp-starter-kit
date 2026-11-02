@@ -1,0 +1,192 @@
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/installer/WebInstallEngine.php';
+
+// The web installer always opens a session before rendering HTML.
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+function expectWeb(bool $value, string $message): void
+{
+    if (!$value) throw new RuntimeException('FAILED: ' . $message);
+    echo "[OK] $message\n";
+}
+
+$password = 'WebInstallerStrongPassword_2026!';
+foreach (array_keys(WebInstallRecipe::TYPES) as $type) {
+    $d = WebInstallRecipe::validate([
+        'type' => $type,
+        'project_name' => 'Projet Démo',
+        'base_url' => 'https://example.test',
+        'admin_email' => 'owner@example.test',
+        'admin_password' => $password,
+        'password_confirm' => $password,
+        'members' => $type === 'saas' ? '1' : '0',
+        'mcp' => '0',
+        'stripe' => '0',
+    ]);
+    expectWeb($d['type'] === $type && $d['preset'] === WebInstallRecipe::TYPES[$type]['design'],
+        'Recipe valid: ' . $type);
+}
+foreach ([
+    ['type'=>'unsupported'],
+    ['base_url'=>'http://example.test'],
+    ['base_url'=>'https://example.test/a'],
+    ['base_url'=>'https://user:password@example.test'],
+    ['admin_email'=>'notanemail'],
+    ['admin_password'=>'short', 'password_confirm'=>'short'],
+    ['members'=>'0', 'stripe'=>'1'],
+    ['project_name' => "Client'; phpinfo(); //"],
+    ['admin_email' => "o'connor@example.test"],
+    ['admin_password' => "Password'Injection2026!", 'password_confirm' => "Password'Injection2026!"],
+] as $override) {
+    $valid = [
+        'type' => 'saas', 'project_name' => 'Client',
+        'base_url' => 'https://example.test', 'admin_email' => 'owner@example.test',
+        'admin_password' => $password, 'password_confirm' => $password,
+        'members'=>'1', 'mcp'=>'1', 'stripe'=>'0',
+    ];
+    try {
+        WebInstallRecipe::validate(array_merge($valid, $override));
+        throw new RuntimeException('Invalid recipe was accepted: ' . json_encode($override));
+    } catch (InvalidArgumentException) {
+        // Expected.
+    }
+}
+echo "[OK] Invalid settings rejected\n";
+
+// Exercise actual generator feature switches rather than only validating form
+// options. Non-MCP websites must not expose OAuth endpoints.
+$baseConfig = require dirname(__DIR__) . '/installer/config.php';
+foreach ([
+    ['type' => 'saas', 'mcp' => '1', 'members' => '1'],
+    ['type' => 'outil_metier', 'mcp' => '0', 'members' => '1'],
+    ['type' => 'blog', 'mcp' => '0', 'members' => '0'],
+    ['type' => 'site_vitrine', 'mcp' => '1', 'members' => '0'],
+] as $variation) {
+    $parameters = array_merge([
+        'project_name' => 'Test ' . $variation['type'],
+        'base_url' => 'https://example.test',
+        'admin_email' => 'owner@example.test',
+        'admin_password' => $password,
+        'password_confirm' => $password,
+        'stripe' => '0',
+    ], $variation);
+    $validated = WebInstallRecipe::validate($parameters);
+    $rootPreview = sys_get_temp_dir() . '/flight-recipe-' . bin2hex(random_bytes(6));
+    mkdir($rootPreview . '/public', 0700, true);
+    try {
+        $cfg = WebInstallRecipe::apply($baseConfig, $validated, $rootPreview);
+        $options = InstallerOptions::fromArgv(['install', '--dry-run']);
+        $flags = InstallerFeatures::fromConfig($cfg, $options);
+        $blueprint = new ProjectBlueprint($cfg, $rootPreview, $flags, new TemplateCatalog($flags));
+        $files = $blueprint->files();
+        expectWeb(
+            isset($files[$rootPreview . '/app/routes/mcp.php']) === ($variation['mcp'] === '1'),
+            'MCP generated only when enabled: ' . $variation['type']
+        );
+        expectWeb(
+            $cfg['frontend_auth']['enabled'] === ($variation['members'] === '1'),
+            'Member sign-in matches recipe: ' . $variation['type']
+        );
+    } finally {
+        WebInstallEngine::removeDirectory($rootPreview);
+    }
+}
+
+$bundle = $argv[1] ?? null;
+if (!is_string($bundle) || !is_dir($bundle)) {
+    echo "Recipe checks PASS. Supply unpacked GitHub distribution to test a full installation.\n";
+    exit(0);
+}
+
+$zipFile = $argv[2] ?? null;
+if (is_string($zipFile) && is_file($zipFile)) {
+    define('FLIGHT_INSTALLER_LIBRARY_ONLY', true);
+    require dirname(__DIR__) . '/web-installer/install.php';
+    $extracted = sys_get_temp_dir() . '/flight-unzip-test-' . bin2hex(random_bytes(6));
+    mkdir($extracted, 0700, true);
+    try {
+        expandSafeZip($zipFile, $extracted);
+        expectWeb(is_file($extracted . '/runtime/vendor/autoload.php'), 'Web bootstrap extracts the real vendor ZIP');
+        expectWeb(is_file($extracted . '/installer/WebInstallEngine.php'), 'Web bootstrap extracts generator securely');
+        $bad = sys_get_temp_dir() . '/flight-bad-zip-' . bin2hex(random_bytes(6)) . '.zip';
+        $archive = new ZipArchive();
+        $archive->open($bad, ZipArchive::CREATE);
+        $archive->addFromString('installer/../../../escape.php', '<?php echo 1;');
+        $archive->close();
+        try {
+            expandSafeZip($bad, $extracted);
+            throw new RuntimeException('Archive traversal attack was accepted.');
+        } catch (RuntimeException $e) {
+            expectWeb(str_contains($e->getMessage(), 'Chemin dangereux'), 'ZIP traversal forbidden');
+        } finally {
+            unlink($bad);
+        }
+    } finally {
+        WebInstallEngine::removeDirectory($extracted);
+    }
+}
+
+// Optional fourth argument keeps the generated project so CI can start
+// a real HTTP server and verify the newly installed site routes.
+$keptRoot = isset($argv[3]) && is_string($argv[3]) && $argv[3] !== '';
+$root = $keptRoot
+    ? $argv[3]
+    : sys_get_temp_dir() . '/flight-web-install-' . bin2hex(random_bytes(6));
+if ($keptRoot && (file_exists($root) || is_link($root))) {
+    throw new RuntimeException('The HTTP test target already exists.');
+}
+mkdir($root . '/public', 0700, true);
+try {
+    $config = [
+        'type' => 'saas',
+        'project_name' => 'Client Démonstration',
+        'base_url' => 'https://example.test',
+        'admin_email' => 'owner@example.test',
+        'admin_password' => $password,
+        'password_confirm' => $password,
+        'members' => '1', 'mcp' => '1', 'stripe' => '0',
+    ];
+    $result = WebInstallEngine::install($bundle, $root, $config);
+    expectWeb($result['mcp'] === 'https://example.test/mcp', 'MCP endpoint described');
+    foreach ([
+        'app/bootstrap.php','app/Mcp/DynamicOAuth.php',
+        'app/Database/Seeds/DatabaseSeeder.php','vendor/autoload.php',
+        'public/index.php','public/build/manifest.json',
+        'app/storage/database.sqlite','app/config/backoffice.php',
+        '.env','.flight-project.json',
+    ] as $path) {
+        expectWeb(is_file($root . '/' . $path), 'Generated: ' . $path);
+    }
+    $pdo = new PDO('sqlite:' . $root . '/app/storage/database.sqlite');
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $stmt = $pdo->query('SELECT email, password FROM admin_users LIMIT 1');
+    $owner = $stmt->fetch(PDO::FETCH_ASSOC);
+    expectWeb(($owner['email'] ?? '') === 'owner@example.test', 'Owner persisted in database');
+    expectWeb(password_verify($password, $owner['password']), 'Owner password hash correct');
+    foreach (['app/config/backoffice.php', '.env', '.env.example', 'README.md'] as $path) {
+        $body = file_get_contents($root . '/' . $path);
+        expectWeb(!str_contains((string) $body, $password), 'Seed secret scrubbed: ' . $path);
+    }
+    $manifest = json_decode((string) file_get_contents($root . '/public/build/manifest.json'), true);
+    expectWeb(is_array($manifest) && $manifest !== [], 'Real Vite asset manifest installed');
+    $dbMigrations = (int) $pdo->query('SELECT COUNT(*) FROM migrations')->fetchColumn();
+    expectWeb($dbMigrations >= 2, 'Database migrations applied');
+
+    // No replacement of existing live application.
+    try {
+        WebInstallEngine::install($bundle, $root, $config);
+        throw new RuntimeException('Second installation unexpectedly overwrote existing site.');
+    } catch (RuntimeException $e) {
+        expectWeb(str_contains($e->getMessage(), 'existante détectée'), 'Reinstallation refused');
+    }
+    echo "Web installer production-bundle integration: PASS\n";
+} finally {
+    if (!$keptRoot) {
+        WebInstallEngine::removeDirectory($root);
+    }
+}

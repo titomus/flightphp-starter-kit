@@ -7,6 +7,7 @@ final class InstallerFeatures
     public function __construct(
         public readonly bool $backoffice,
         public readonly bool $frontend,
+        public readonly bool $mcp,
     ) {
     }
 
@@ -20,6 +21,6 @@ final class InstallerFeatures
         $frontend = (bool) ($configured['frontend']
             ?? (($config['frontend']['vite'] ?? false) || ($config['frontend']['tailwind'] ?? false)));
 
-        return new self($backoffice, $frontend);
+        return new self($backoffice, $frontend, (bool) ($config['mcp']['enabled'] ?? false));
     }
 }

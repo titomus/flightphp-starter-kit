@@ -8,6 +8,7 @@ require_once __DIR__ . '/FrontendTemplateCatalog.php';
 require_once __DIR__ . '/ConsoleTemplateCatalog.php';
 require_once __DIR__ . '/BackofficeTemplateCatalog.php';
 require_once __DIR__ . '/InstallerFeatures.php';
+require_once __DIR__ . '/McpTemplateCatalog.php';
 
 final class TemplateCatalog
 {
@@ -19,6 +20,8 @@ final class TemplateCatalog
 
     private BackofficeTemplateCatalog $backoffice;
 
+    private McpTemplateCatalog $mcp;
+
     public function __construct(private readonly InstallerFeatures $features)
     {
         $renderer = new TemplateRenderer();
@@ -26,6 +29,7 @@ final class TemplateCatalog
         $this->frontend = new FrontendTemplateCatalog();
         $this->console = new ConsoleTemplateCatalog($renderer);
         $this->backoffice = new BackofficeTemplateCatalog($renderer);
+        $this->mcp = new McpTemplateCatalog($renderer);
     }
 
     public function files(array $vars): array
@@ -41,6 +45,10 @@ final class TemplateCatalog
 
         if ($this->features->backoffice) {
             $files = array_merge($files, $this->backoffice->files($vars));
+        }
+
+        if ($this->features->mcp) {
+            $files = array_merge($files, $this->mcp->files($vars));
         }
 
         return $files;

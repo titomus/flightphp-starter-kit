@@ -1,4 +1,26 @@
-# Flight PHP Starter Kit
+# Flight Starter Kit 2.1 (bêta)
+
+## Télécharger la bonne version
+
+**Pour un utilisateur qui souhaite installer le kit :** consulter les [versions publiées (Releases)](https://github.com/titomus/flightphp-starter-kit/releases). Chaque version installable doit contenir `install.php`, `flight-starter-runtime.zip` (dépendances incluses) et son empreinte SHA-256.
+
+**Pour consulter le code :** la branche `main` est la référence. Le bouton GitHub **Code → Download ZIP** récupère les sources, **pas** une distribution précompilée installable en un seul fichier.
+
+**Pour développer :** les branches `feature/...` et `demo/...` ne sont pas des versions destinées aux abonnés.
+
+⚠️ **Bêta technique :** les installations sur hébergement mutualisé et la compatibilité des modules métier restent à valider. Aucune Release stable n'est publiée tant que ces tests réels ne sont pas réussis. [Procédure de publication](docs/PUBLICATION.md).
+
+## Nouveau : installation web en un seul fichier (v2.1 bêta)
+
+Le nouveau **configurateur d'installation** est inclus dans le Starter Kit.
+Déposer `web-installer/install.php` dans le document root `public/` d'un projet neuf, déverrouiller l'installation avec le secret privé et choisir dans le navigateur : SaaS, outil métier, blog ou site vitrine, puis les modules membres, MCP et Stripe.
+
+Le kit génère le projet sur l'hébergement à partir d'un **ZIP GitHub Release vérifié par SHA-256**, avec les dépendances Composer et les thèmes Vite déjà compilés dans GitHub Actions. Pas de Node ou Composer côté hébergeur.
+
+**Attention :** la distribution beta doit être publiée sous un tag versionné avant que le téléchargement depuis GitHub Release fonctionne. Le support SQLite est prioritaire. Les presets Blog/Vitrine sont pour l'instant des squelettes avec un thème, pas des CMS finalisés.
+
+[Documentation de l'installateur web](docs/WEB_INSTALLER_V2_1.md) · [Source du fichier unique](web-installer/install.php) · [Tests du configurateur](tests/web-installer-smoke.php)
+
 
 Installer configurable pour generer une application Flight PHP complete: MVC, auth, backoffice, queue, Stripe, OAuth, SEO, email, Vite, Tailwind, HTMX, AlpineJS et design presets.
 
@@ -17,6 +39,49 @@ Le but du projet est de partir d'un seul dossier d'installation, d'ajuster `inst
 - Manifest Vite genere dans `public/manifest.json`
 - Router PHP integre via `public/router.php` pour servir les fichiers statiques et router les URLs dynamiques comme `/sitemap.xml`
 - Design system base sur presets et CSS variables
+
+## Développement des applications clients via ChatGPT (nouveau en v2)
+
+La v2 génère une **application FlightPHP MVC indépendante**, avec :
+- Un serveur MCP intégré sur la route Flight `/mcp` (pas de fichier PHP public à appeler directement).
+- Une connexion ChatGPT via OAuth 2.1, PKCE et enregistrement dynamique du client.
+- Des permissions distinctes `business:read`, `business:write`, `app:evolve` et `app:deploy`.
+- Un registre de fonctions métier dans `app/Mcp/business_tools.php`, utilisant les services PHP de l'application.
+- Des outils de développement limités aux fichiers métier, avec brouillon, validation, sauvegardes, déploiement et rollback.
+- Des routes, contrôleurs, services, modèles et vues métier organisés sous des dossiers dédiés.
+- Des CSS/JS métier chargés directement depuis `public/assets/business.css` et `business.js` sans reconstruction Vite.
+
+**Le dépôt sert à fabriquer le logiciel.** Après installation, les évolutions
+métier autorisées peuvent être effectuées directement sur l'hébergement du
+client via ChatGPT. Aucun dépôt GitHub n'est nécessaire pour ses modifications
+quotidiennes.
+
+Le droit de déployer du PHP **n'est jamais activé automatiquement**. Il doit
+être accordé explicitement par l'administrateur et activé dans le fichier
+`.env` privé avec `ATELIER_CODE_UPDATES_ENABLED=true`.
+
+**Avertissement :** il s'agit encore d'une bêta. La publication PHP est une
+capacité très sensible et ne remplace pas une revue de sécurité, une sauvegarde
+de base de données ni des tests fonctionnels. Les modifications du framework,
+des dépendances et les migrations de schéma ne sont pas encore automatisées
+dans l'atelier.
+
+- [Architecture, contrat client et feuille de route](docs/FLIGHT_STARTER_V2.md)
+- [Intégration MCP et droits](docs/MCP_NATIVE.md)
+- Test de génération et rollback : `php tests/v2-smoke.php`
+- Test d'installation et HTTP : GitHub Actions `Flight Starter Kit v2 reusable install`
+
+Pour tester cette **branche bêta** avant sa publication sur `main` :
+
+```bash
+git clone https://github.com/titomus/flightphp-starter-kit.git my-project
+cd my-project
+git switch feature/flight-starter-v2
+# Configurer un mot de passe administrateur unique et le domaine dans installer/config.php
+php install-flight-starter.php
+```
+
+Puis installer les migrations avant de connecter le client MCP.
 
 ## Prerequis
 
