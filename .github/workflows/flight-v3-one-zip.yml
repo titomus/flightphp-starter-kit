@@ -59,6 +59,10 @@ jobs:
           unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/build/saas/manifest.json$'
           (cd dist && sha256sum -c "$(basename "$ZIP").sha256")
           python3 scripts/audit-v3-zip.py "$ZIP"
+          # Regression guard: don't ship the 130+ MiB Google API services again.
+          ! unzip -Z1 "$ZIP" | grep -Eq '^\\.flight-package/runtime/vendor/google/apiclient(-services)?/'
+          # The prebuilt standalone archive should remain under 10 MiB.
+          test "$(stat -c %s "$ZIP")" -lt 10485760
       - uses: actions/upload-artifact@v4
         with:
           name: flight-starter-v3-alpha-one-zip
