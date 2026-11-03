@@ -1,0 +1,52 @@
+name: Flight Starter V3 one ZIP validation
+on:
+  push:
+    branches: [feature/one-zip-installer-admin-mcp]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v3-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, zip, curl, openssl, fileinfo
+          tools: composer:v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and existing smoke tests
+        run: |
+          set -euo pipefail
+          php -l web-installer/install.php
+          php tests/web-installer-smoke.php
+          php tests/v2-smoke.php
+      - name: Build standalone V3 package
+        run: bash scripts/build-v3-one-zip.sh "$GITHUB_WORKSPACE/dist"
+      - name: Inspect distribution
+        run: |
+          set -euo pipefail
+          ZIP=dist/flight-starter-v3.0.0-alpha.1.zip
+          unzip -t "$ZIP" >/dev/null
+          unzip -Z1 "$ZIP" | grep -q '^public/install.php$'
+          unzip -Z1 "$ZIP" | grep -q '^.flight-package/installer/WebInstallEngine.php$'
+          unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/vendor/autoload.php$'
+          ! unzip -Z1 "$ZIP" | grep -Eq '(^|/)(node_modules|\.env)(/|$)'
+          unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/build/saas/manifest.json$'
+          sha256sum -c "$ZIP.sha256"
+          unzip -Z -v "$ZIP" | tail -n 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flight-starter-v3-alpha-one-zip
+          path: |
+            dist/flight-starter-v3.0.0-alpha.1.zip
+            dist/flight-starter-v3.0.0-alpha.1.zip.sha256
+          retention-days: 14
