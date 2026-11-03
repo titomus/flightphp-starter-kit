@@ -17,7 +17,7 @@ try {
     $composer = json_decode((string) ($files[$root . '/composer.json'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
     $requirements = $composer['require'] ?? [];
     if (($requirements['league/oauth2-google'] ?? '') !== '^5.0'
-        || isset($requirements['google/apiclient'], $requirements['google/apiclient-services'])) {
+        || isset($requirements['google/apiclient']) || isset($requirements['google/apiclient-services'])) {
         throw new RuntimeException('Google OAuth includes unexpected heavyweight Composer dependencies.');
     }
     $service = (string) ($files[$root . '/app/Services/GoogleOAuth.php'] ?? '');
