@@ -224,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_install'] ?? '') === '1')
             if (!extension_loaded($ext)) problem('Extension PHP requise : ' . $ext);
         }
         $input = $_POST;
-        $unpacked = $root;
+        $unpacked = $root . '/.flight-package';
         if (!is_file($unpacked . '/installer/WebInstallEngine.php')
             || !is_file($unpacked . '/runtime/vendor/autoload.php')
             || !is_file($unpacked . '/distribution.json')) {
