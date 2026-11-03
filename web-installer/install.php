@@ -238,6 +238,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_install'] ?? '') === '1')
         }
         chmod($root . '/.flight-installed.lock', 0600);
         @unlink($accessFile);
+        // Remove the private distribution only after activation and lock succeed.
+        // A failed installation keeps its verified package for a retry.
+        WebInstallEngine::removeDirectory($unpacked);
         $_SESSION = [];
         session_destroy();
 
