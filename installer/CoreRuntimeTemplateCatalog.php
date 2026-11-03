@@ -616,8 +616,7 @@ declare(strict_types=1);
 
 namespace {{namespace}}\Services;
 
-use Google\Client;
-use Google\Service\Oauth2;
+use League\OAuth2\Client\Provider\Google;
 use RuntimeException;
 
 final class GoogleOAuth
@@ -632,7 +631,6 @@ final class GoogleOAuth
     {
         $state = bin2hex(random_bytes(16));
         $_SESSION['oauth.google_state'] = $state;
-
         return $state;
     }
 
@@ -640,77 +638,62 @@ final class GoogleOAuth
     {
         $expected = $_SESSION['oauth.google_state'] ?? null;
         unset($_SESSION['oauth.google_state']);
-
         return is_string($expected) && is_string($state) && hash_equals($expected, $state);
     }
 
     public function authorizationUrl(string $state): string
     {
-        $client = $this->client();
-        $client->setState($state);
-
-        return $client->createAuthUrl();
+        return $this->provider()->getAuthorizationUrl([
+            'state' => $state,
+            'scope' => $this->scopes(),
+            'prompt' => 'select_account',
+            'access_type' => 'online',
+        ]);
     }
 
     public function fetchIdentity(string $code): array
     {
-        $client = $this->client();
-        $token = $client->fetchAccessTokenWithAuthCode($code);
-
-        if (isset($token['error'])) {
-            throw new RuntimeException('Google OAuth token exchange failed.');
-        }
-
-        $client->setAccessToken($token);
-        $oauth = new Oauth2($client);
-        $profile = $oauth->userinfo->get();
-
+        $provider = $this->provider();
+        $token = $provider->getAccessToken('authorization_code', ['code' => $code]);
+        $profile = $provider->getResourceOwner($token);
+        $data = $profile->toArray();
         return [
-            'google_id' => (string) ($profile->id ?? ''),
-            'email' => (string) ($profile->email ?? ''),
-            'name' => trim((string) ($profile->name ?? $profile->givenName ?? 'Google user')),
-            'avatar' => (string) ($profile->picture ?? ''),
-            'verified_email' => (bool) ($profile->verifiedEmail ?? false),
+            'google_id' => (string) ($data['sub'] ?? ''),
+            'email' => (string) ($data['email'] ?? ''),
+            'name' => trim((string) ($data['name'] ?? $data['given_name'] ?? 'Google user')),
+            'avatar' => (string) ($data['picture'] ?? ''),
+            'verified_email' => ($data['email_verified'] ?? false) === true,
         ];
     }
 
-    private function client(): Client
+    private function provider(): Google
     {
         if (!$this->isEnabled()) {
             throw new RuntimeException('Google login is disabled.');
         }
-
         $clientId = trim((string) config('social_auth.providers.google.client_id', ''));
         $clientSecret = trim((string) config('social_auth.providers.google.client_secret', ''));
-
         if ($clientId === '' || $clientSecret === '') {
             throw new RuntimeException('Google OAuth credentials are not configured.');
         }
-
-        $client = new Client();
-        $client->setClientId($clientId);
-        $client->setClientSecret($clientSecret);
-        $client->setRedirectUri(app_url((string) config('social_auth.providers.google.callback_path', '/auth/google/callback')));
-        $client->setScopes($this->scopes());
-        $client->setAccessType('online');
-        $client->setPrompt('select_account');
-
+        $options = [
+            'clientId' => $clientId,
+            'clientSecret' => $clientSecret,
+            'redirectUri' => app_url((string) config('social_auth.providers.google.callback_path', '/auth/google/callback')),
+        ];
         $hostedDomain = trim((string) config('social_auth.providers.google.hosted_domain', ''));
         if ($hostedDomain !== '') {
-            $client->setHostedDomain($hostedDomain);
+            $options['hostedDomain'] = $hostedDomain;
         }
-
-        return $client;
+        return new Google($options);
     }
 
     private function scopes(): array
     {
         $configured = config('social_auth.providers.google.scopes', ['openid', 'email', 'profile']);
-
         if (is_array($configured)) {
             return array_values(array_filter(array_map(static fn (mixed $scope): string => trim((string) $scope), $configured)));
         }
-
         return array_values(array_filter(array_map('trim', explode(',', (string) $configured))));
     }
 }
