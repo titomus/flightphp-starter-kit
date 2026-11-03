@@ -21,7 +21,7 @@ $tools = [
             'flight_starter_version' => '2.0.0-beta',
             'mcp_enabled' => true,
             'business_tools_enabled' => in_array(DynamicOAuth::READ, $allowedScopes, true),
-            'code_deployment_enabled' => in_array(DynamicOAuth::DEPLOY, $allowedScopes, true) && CodeWorkspace::deploymentAllowed(),
+            'code_deployment_enabled' => in_array(DynamicOAuth::DEPLOY, $allowedScopes, true) && CodeWorkspace::enabled(),
         ],
     ],
 ];
@@ -85,8 +85,8 @@ foreach ($businessTools as $name => $definition) {
 if ($adminId > 0 && in_array(DynamicOAuth::DEPLOY, $allowedScopes, true)) {
     $workspace = static fn (): CodeWorkspace => new CodeWorkspace();
     $writeEnabled = static function (): void {
-        if (!CodeWorkspace::deploymentAllowed()) {
-            throw new \RuntimeException('Code updates disabled. Both server configuration and owner approval are required.');
+        if (!CodeWorkspace::enabled()) {
+            throw new \RuntimeException('Code updates disabled. Set ATELIER_CODE_UPDATES_ENABLED=true in the private .env file.');
         }
     };
     $fileSchema = [
