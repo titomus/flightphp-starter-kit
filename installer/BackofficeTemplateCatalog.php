@@ -17,7 +17,7 @@ final class BackofficeTemplateCatalog
             'app/Controllers/Admin/LoginController.php' => $this->renderer->render($this->templateAdminLoginController(), $vars),
             'app/Database/Migrations/20260428000001_create_admin_users_table.php' => $this->templateBackofficeMigration(),
             'app/Models/User.php' => $this->renderer->render($this->templateUserModel(), $vars),
-            'app/Views/admin/layouts/main.php' => $this->templateAdminLayout(),
+            'app/Views/admin/layouts/main.php' => $this->renderer->render($this->templateAdminLayout(), $vars),
             'app/Views/admin/dashboard.php' => $this->templateAdminViewContent(),
             'app/Views/admin/auth/login.php' => $this->templateAdminLoginView(),
         ];
@@ -329,7 +329,7 @@ PHP;
         <strong class="display-title text-lg tracking-wide"><?= htmlspecialchars(config('app.name', 'Flight Starter'), ENT_QUOTES, 'UTF-8') ?></strong>
         <div class="flex items-center gap-5 text-sm font-medium">
             <a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>">Dashboard</a>
-            <?php if (class_exists(\App\Mcp\CodeWorkspace::class)): ?><a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/mcp">IA & MCP</a><?php endif; ?>
+            <?php if (class_exists(\{{namespace}}\Mcp\CodeWorkspace::class)): ?><a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/mcp">IA & MCP</a><?php endif; ?>
             <a class="site-link" href="/">Site</a>
             <?php if (auth('admin')->check()): ?>
                 <form method="post" action="<?= htmlspecialchars(config('auth.guards.admin.logout_path', '/admin/logout'), ENT_QUOTES, 'UTF-8') ?>">
