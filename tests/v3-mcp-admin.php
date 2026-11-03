@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/installer/FlightStarterInstaller.php';
+require dirname(__DIR__) . '/installer/WebInstallEngine.php';
 $config = require dirname(__DIR__) . '/installer/config.php';
 $root = sys_get_temp_dir() . '/flight-v3-admin-' . bin2hex(random_bytes(5));
 mkdir($root . '/public', 0700, true);
@@ -22,16 +22,17 @@ try {
     $tools = $files[$root . '/app/Mcp/tools.php'] ?? '';
     foreach ([
         [$controller, 'deployment-approval.json'],
-        [$controller, 'VerifyCsrfMiddleware'],
         [$view, 'deployment_approved'],
         [$workspace, 'function deploymentAllowed'],
         [$tools, 'CodeWorkspace::deploymentAllowed()'],
     ] as [$text, $expected]) {
         if (!str_contains($text, $expected)) {
-            // CSRF is enforced by generated routes, not controller.
-            if ($expected === 'VerifyCsrfMiddleware') continue;
             throw new RuntimeException('Missing V3 MCP approval: ' . $expected);
         }
+    }
+    $adminRoutes = (new BackofficeTemplateCatalog(new TemplateRenderer()))->adminRoutes(['namespace' => 'App']);
+    if (!str_contains($adminRoutes, 'VerifyCsrfMiddleware') || !str_contains($adminRoutes, 'McpSettingsController')) {
+        throw new RuntimeException('MCP settings route missing CSRF or authentication');
     }
     if (str_contains($workspace, 'function deploymentAllowed') && !str_contains($workspace, 'self::enabled()')) {
         throw new RuntimeException('Server deployment kill switch removed');
