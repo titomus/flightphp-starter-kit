@@ -5,9 +5,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish_draft:
+        description: 'Create a draft GitHub prerelease with downloadable ZIP after successful tests'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   v3-package:
@@ -59,3 +65,23 @@ jobs:
             dist/flight-starter-v3.0.0-alpha.1.zip
             dist/flight-starter-v3.0.0-alpha.1.zip.sha256
           retention-days: 14
+
+      - name: Publish V3 draft prerelease (manual opt-in only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_draft == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=v3.0.0-alpha.1
+          TAG="$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to overwrite." >&2
+            exit 1
+          fi
+          gh release create "$TAG" \
+            "dist/flight-starter-$VERSION.zip" \
+            "dist/flight-starter-$VERSION.zip.sha256" \
+            --target "$GITHUB_SHA" \
+            --title "Flight Starter Kit $VERSION (test uniquement)" \
+            --notes "Préversion V3 : installation et sécurité à tester sur un hébergement vierge. Ne pas déployer sur un site de production." \
+            --prerelease --draft
