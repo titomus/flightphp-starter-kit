@@ -11,17 +11,9 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 bash "$ROOT/scripts/build-web-distribution.sh" "$WORK/build"
-mkdir -p "$WORK/package/public"
+mkdir -p "$WORK/package/public" "$WORK/package/.flight-package"
 cp "$ROOT/web-installer/install.php" "$WORK/package/public/install.php"
-unzip -q "$WORK/build/flight-starter-runtime.zip" -d "$WORK/package"
-# The existing web installer downloads the runtime from GitHub. It must be
-# adapted to consume this local package before this artifact is installable.
-cat > "$WORK/package/INSTALLATION-NOT-READY.txt" <<'EOF'
-EXPERIMENTAL V3 PACKAGE: NOT YET INSTALLABLE.
-The installer still requires GitHub download and must be refactored to
-use the local installer/ and runtime/ directories.
-Do not deploy this package on a client site.
-EOF
+unzip -q "$WORK/build/flight-starter-runtime.zip" -d "$WORK/package/.flight-package"
 (
   cd "$WORK/package"
   zip -q -r -X "$OUT/flight-starter-$VERSION.zip" .
@@ -30,5 +22,5 @@ EOF
   cd "$OUT"
   sha256sum "flight-starter-$VERSION.zip" > "flight-starter-$VERSION.zip.sha256"
 )
-echo "Experimental package: $OUT/flight-starter-$VERSION.zip"
+echo "V3 package: $OUT/flight-starter-$VERSION.zip"
 du -h "$OUT/flight-starter-$VERSION.zip"
