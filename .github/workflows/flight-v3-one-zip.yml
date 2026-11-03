@@ -28,6 +28,7 @@ jobs:
           set -euo pipefail
           php -l web-installer/install.php
           php tests/v3-local-installer.php
+          php tests/v3-mcp-admin.php
           php tests/web-installer-smoke.php
           php tests/v2-smoke.php
       - name: Build standalone V3 package
