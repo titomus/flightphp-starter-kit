@@ -295,7 +295,7 @@ Packages ajoutes selon la config au moment de lancer l'installer:
 
 | Package | Condition |
 |---|---|
-| `google/apiclient` | `social_auth.enabled=true` et Google OAuth active |
+| `league/oauth2-google` | `social_auth.enabled=true` et Google OAuth active |
 | `league/oauth2-client` + `league/oauth2-github` | `social_auth.enabled=true` et GitHub OAuth active |
 | `stripe/stripe-php` | `stripe.enabled=true` |
 | `symfony/mailer` + `symfony/mime` | `mail.default=smtp` |
@@ -385,7 +385,7 @@ Exemple d'override avant generation:
 
 Providers prevus:
 
-- Google OAuth via `google/apiclient`
+- Google OAuth via `league/oauth2-google`
 - GitHub OAuth via `league/oauth2-github`
 
 Les providers sont desactives tant que les credentials ne sont pas fournis.
