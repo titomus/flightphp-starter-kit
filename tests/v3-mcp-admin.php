@@ -31,7 +31,7 @@ try {
         }
     }
     $adminRoutes = (new BackofficeTemplateCatalog(new TemplateRenderer()))->adminRoutes(['namespace' => 'App']);
-    if (!str_contains($adminRoutes, 'VerifyCsrfMiddleware') || !str_contains($adminRoutes, 'McpSettingsController')) {
+    if (!str_contains($adminRoutes, "'/mcp'") || !str_contains($adminRoutes, 'VerifyCsrfMiddleware') || !str_contains($adminRoutes, 'AuthenticateMiddleware') || !str_contains($adminRoutes, 'McpSettingsController')) {
         throw new RuntimeException('MCP settings route missing CSRF or authentication');
     }
     if (str_contains($workspace, 'function deploymentAllowed') && !str_contains($workspace, 'self::enabled()')) {
