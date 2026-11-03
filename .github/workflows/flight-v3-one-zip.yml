@@ -56,7 +56,7 @@ jobs:
           unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/vendor/autoload.php$'
           ! unzip -Z1 "$ZIP" | grep -Eq '(^|/)(node_modules|\.env)(/|$)'
           unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/build/saas/manifest.json$'
-          sha256sum -c "$ZIP.sha256"
+          (cd dist && sha256sum -c "$(basename "$ZIP").sha256")
           python3 scripts/audit-v3-zip.py "$ZIP"
       - uses: actions/upload-artifact@v4
         with:
