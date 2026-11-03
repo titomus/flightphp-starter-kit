@@ -18,7 +18,7 @@ final class CoreProjectTemplateCatalog
         ];
 
         if (($vars['composer_require_google'] ?? 'false') === 'true') {
-            $requirements['google/apiclient'] = '^2.18';
+            $requirements['league/oauth2-google'] = '^5.0';
         }
 
         if (($vars['composer_require_github'] ?? 'false') === 'true') {
@@ -41,7 +41,7 @@ final class CoreProjectTemplateCatalog
             'type' => 'project',
             'require' => $requirements,
             'suggest' => [
-                'google/apiclient' => 'Required when Google OAuth is enabled.',
+                'league/oauth2-google' => 'Required when Google OAuth is enabled.',
                 'league/oauth2-github' => 'Required when GitHub OAuth is enabled.',
                 'stripe/stripe-php' => 'Required when Stripe billing is enabled.',
                 'symfony/mailer' => 'Required when MAIL_MAILER=smtp.',
