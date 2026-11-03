@@ -1,3 +1,15 @@
+## V3 : ZIP autonome en préparation
+
+**[Télécharger le ZIP V3 depuis les exécutions GitHub Actions](https://github.com/titomus/flightphp-starter-kit/actions/workflows/flight-v3-one-zip.yml)**
+
+Ouvrir une exécution **réussie** sur la branche `feature/one-zip-installer-admin-mcp`, puis récupérer l'artifact `flight-starter-v3-alpha-one-zip` en bas de page. Décompresser l'artifact pour obtenir `flight-starter-v3.0.0-alpha.1.zip` et son SHA-256. Un compte GitHub peut être nécessaire pour les artifacts Actions, qui expirent au bout de 14 jours.
+
+**[Page des Releases GitHub](https://github.com/titomus/flightphp-starter-kit/releases)** : une préversion V3 pourra être publiée sous forme de *brouillon* avec son ZIP téléchargeable, en lançant manuellement le workflow et en cochant `publish_draft`. Le brouillon devra ensuite être publié explicitement pour rendre son téléchargement public. **Aucune Release V3 publique n'est annoncée à ce stade.**
+
+La V3 reste **expérimentale**. Ne pas l'utiliser sur un site existant avant validation sur un sous-domaine vierge. [Instructions d'installation V3](docs/V3_INSTALLATION.md).
+
+---
+
 # Flight Starter Kit 2.1 (bêta)
 
 ## Télécharger la bonne version
