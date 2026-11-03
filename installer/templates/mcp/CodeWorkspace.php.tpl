@@ -47,6 +47,30 @@ final class CodeWorkspace
         return filter_var((string) env('ATELIER_CODE_UPDATES_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN);
     }
 
+    /**
+     * Additional owner-controlled deployment approval.
+     * A server-level .env gate remains mandatory and takes precedence.
+     * This file is private and never exposed through the public document root.
+     */
+    public static function ownerApproved(?string $root = null): bool
+    {
+        $base = realpath($root ?? dirname(__DIR__, 2));
+        if ($base === false) {
+            return false;
+        }
+        $file = $base . '/app/storage/atelier/deployment-approval.json';
+        if (!is_file($file) || is_link($file)) {
+            return false;
+        }
+        $data = json_decode((string) file_get_contents($file), true);
+        return is_array($data) && ($data['approved'] ?? null) === true;
+    }
+
+    public static function deploymentAllowed(?string $root = null): bool
+    {
+        return self::enabled() && self::ownerApproved($root);
+    }
+
     public function listFiles(): array
     {
         $paths = self::PATHS;
