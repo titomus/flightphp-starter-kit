@@ -78,6 +78,21 @@ try {
     \App\Services\RuntimeSettings::update(['section'=>'seo','title_separator'=>' | ','default_description'=>'Nouvelle description']);
     \App\Services\RuntimeSettings::update(['section'=>'members','enabled'=>'1','registration_enabled'=>'0']);
     \App\Services\RuntimeSettings::update(['section'=>'google','enabled'=>'0','client_id'=>'demo-client','client_secret'=>'demo-secret']);
+    \App\Services\RuntimeSettings::update([
+        'section'=>'stripe','enabled'=>'0',
+        'plan_starter_monthly'=>'1',
+        'price_starter_monthly'=>'price_1234567890ABCDE',
+        'amount_starter_monthly'=>'39',
+    ]);
+    $mapped=\App\Services\RuntimeSettings::overrides(\App\Services\RuntimeSettings::read());
+    if (($mapped['billing']['providers']['stripe']['plans']['starter_monthly']['price_id']??'')!=='price_1234567890ABCDE'
+        || ($mapped['billing']['providers']['stripe']['plans']['starter_monthly']['amount']??0)!==3900
+        || ($mapped['billing']['providers']['stripe']['plans']['starter_yearly']['enabled']??null)!==false) {
+        throw new RuntimeException('Stripe plan amount, Price ID or disabled plan state was not mapped.');
+    }
+    $reject(['section'=>'stripe','enabled'=>'1','plan_starter_monthly'=>'1',
+        'price_starter_monthly'=>'fake_price','amount_starter_monthly'=>'39'],'Fake Stripe Price ID');
+
     $new=\App\Services\RuntimeSettings::read();
     if (($new['google']['enabled']??true)!==false ||
         ($new['google']['client_secret']??'')!=='demo-secret' ||
