@@ -279,6 +279,20 @@ $form = '<p>Choisissez une base de départ. Les fonctionnalités métier pourron
     . '<label><input type="hidden" name="members" value="0"><input type="checkbox" name="members" value="1" checked> Comptes membres</label>'
     . '<label><input type="hidden" name="mcp" value="0"><input type="checkbox" name="mcp" value="1" checked> Connecteur ChatGPT MCP</label>'
     . '<label><input type="hidden" name="stripe" value="0"><input type="checkbox" name="stripe" value="1"> Module Stripe</label>'
+    . '<details class="surface-card" style="margin-top:18px;padding:18px;border:1px solid #dbe7d8;border-radius:12px">'
+    . '<summary style="cursor:pointer;font-weight:800">Personnaliser le thème et les intégrations</summary>'
+    . '<fieldset style="margin-top:15px"><label>Thème initial<select name="design_preset">'
+    . '<option value="saas">SaaS · Moderne</option><option value="outil_metier">Gestion · Sobre</option><option value="blog">Éditorial · Clair</option>'
+    . '</select></label></fieldset>'
+    . '<fieldset style="display:flex;gap:18px;flex-wrap:wrap;margin-top:15px">'
+    . '<label>Couleur principale <input type="color" name="primary" value="#2563eb"></label>'
+    . '<label>Couleur secondaire <input type="color" name="accent" value="#14b8a6"></label></fieldset>'
+    . '<div class="checks" style="margin-top:16px">'
+    . '<label><input type="hidden" name="google" value="0"><input type="checkbox" name="google" value="1"> Préparer Google Login</label>'
+    . '<label><input type="hidden" name="github" value="0"><input type="checkbox" name="github" value="1"> Préparer GitHub Login</label>'
+    . '<label><input type="hidden" name="smtp" value="0"><input type="checkbox" name="smtp" value="1"> Préparer SMTP</label>'
+    . '</div><p>Ces intégrations restent désactivées jusqu’à la saisie des identifiants dans Administration → Modules & réglages.</p>'
+    . '</details>'
     . '</div><div class="warn">Les versions « blog » et « site vitrine » fournissent pour l’instant la structure et le thème, pas encore un CMS éditorial complet. '
     . 'Les paiements Stripe nécessiteront une configuration ultérieure des clés.</div></section>'
     . '<section style="margin-top:20px"><span class="eyebrow">Distribution locale V3</span>'
@@ -289,6 +303,7 @@ $form = '<p>Choisissez une base de départ. Les fonctionnalités métier pourron
 $enhancement = <<<'JS'
 (() => {
   const type = document.querySelector('select[name="type"]');
+  const theme = document.querySelector('select[name="design_preset"]');
   const members = document.querySelector('input[type="checkbox"][name="members"]');
   const mcp = document.querySelector('input[type="checkbox"][name="mcp"]');
   const stripe = document.querySelector('input[type="checkbox"][name="stripe"]');
@@ -300,6 +315,7 @@ $enhancement = <<<'JS'
   }
   type.addEventListener('change', () => {
     const business = type.value === 'saas' || type.value === 'outil_metier';
+    if (theme) theme.value = type.value === 'outil_metier' ? 'outil_metier' : business ? 'saas' : 'blog';
     members.checked = business;
     mcp.checked = business;
     stripe.checked = false;
