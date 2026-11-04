@@ -47,6 +47,20 @@ final class CodeWorkspace
         return filter_var((string) env('ATELIER_CODE_UPDATES_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN);
     }
 
+    public static function deploymentAllowed(): bool
+    {
+        if (!self::enabled()) {
+            return false;
+        }
+        $root = dirname(__DIR__, 2);
+        $file = $root . '/app/storage/atelier/deployment-approval.json';
+        if (!is_file($file) || is_link($file)) {
+            return false;
+        }
+        $data = json_decode((string) file_get_contents($file), true);
+        return is_array($data) && ($data['approved'] ?? false) === true;
+    }
+
     public function listFiles(): array
     {
         $paths = self::PATHS;

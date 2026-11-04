@@ -71,6 +71,7 @@ final class ProjectBlueprint
         if ($this->features->mcp) {
             array_push($directories,
                 'app/Mcp',
+                'app/CodeGraft',
                 'app/Controllers/Business',
                 'app/Services/Business',
                 'app/Models/Business',

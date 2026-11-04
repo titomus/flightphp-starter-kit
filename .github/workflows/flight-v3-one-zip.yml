@@ -1,0 +1,120 @@
+name: Flight Starter V3 one ZIP validation
+on:
+  push:
+    branches: [main, feature/one-zip-installer-admin-mcp, feature/v3-codegraft-native]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      publish_draft:
+        description: 'Create a draft GitHub prerelease with downloadable ZIP after successful tests'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  v3-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, zip, curl, openssl, fileinfo
+          tools: composer:v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and existing smoke tests
+        run: |
+          set -euo pipefail
+          php -l web-installer/install.php
+          php tests/v3-local-installer.php
+          php tests/v3-mcp-admin.php
+          php tests/v3-codegraft-native.php
+          php tests/v3-codegraft-flow.php
+          php tests/v3-lean-google-oauth.php
+          php tests/web-installer-smoke.php
+          php tests/v2-smoke.php
+      - name: Build standalone V3 package
+        run: bash scripts/build-v3-one-zip.sh "$GITHUB_WORKSPACE/dist"
+      - name: Full install from bundled local runtime
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v3-local-bundle"
+          unzip -q dist/flight-starter-v3.0.0-beta.1.zip -d "$RUNNER_TEMP/v3-local-bundle"
+          php tests/web-installer-smoke.php "$RUNNER_TEMP/v3-local-bundle/.flight-package"
+          php -l "$RUNNER_TEMP/v3-local-bundle/public/install.php"
+      - name: Inspect distribution
+        run: |
+          set -euo pipefail
+          ZIP=dist/flight-starter-v3.0.0-beta.1.zip
+          unzip -t "$ZIP" >/dev/null
+          unzip -Z1 "$ZIP" | grep -q '^public/install.php$'
+          unzip -Z1 "$ZIP" | grep -q '^.flight-package/installer/WebInstallEngine.php$'
+          unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/vendor/autoload.php$'
+          unzip -Z1 "$ZIP" > "$RUNNER_TEMP/v3-entries.txt"
+          ! grep -Eq '^\.flight-package/runtime/vendor/google/apiclient(-services)?/' "$RUNNER_TEMP/v3-entries.txt"
+          unzip -Z1 "$ZIP" | grep -q '^.flight-package/runtime/build/saas/manifest.json$'
+          (cd dist && sha256sum -c "$(basename "$ZIP").sha256")
+          python3 scripts/audit-v3-zip.py "$ZIP"
+          # Regression guard: don't ship the 130+ MiB Google API services again.
+          unzip -Z1 "$ZIP" > "$RUNNER_TEMP/v3-entries.txt"
+          ! grep -Eq '^\.flight-package/runtime/vendor/google/apiclient(-services)?/' "$RUNNER_TEMP/v3-entries.txt"
+          # The prebuilt standalone archive should remain under 10 MiB.
+          test "$(stat -c %s "$ZIP")" -lt 10485760
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flight-starter-v3-beta-one-zip
+          path: |
+            dist/flight-starter-v3.0.0-beta.1.zip
+            dist/flight-starter-v3.0.0-beta.1.zip.sha256
+          retention-days: 14
+
+      - name: Publish tested V3 ZIP as a public prerelease from main
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=v3.0.0-beta.1
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release already exists: preserve the published download unchanged."
+            exit 0
+          fi
+          gh release create "$VERSION" \
+            "dist/flight-starter-$VERSION.zip" \
+            "dist/flight-starter-$VERSION.zip.sha256" \
+            --target "$GITHUB_SHA" \
+            --title "Flight Starter Kit V3 avec CodeGraft ($VERSION)" \
+            --notes "Bêta technique autonome. Installation neuve uniquement ; PHP 8.2+, HTTPS et document root vers public/. CodeGraft natif avec administration. Tests et packaging GitHub Actions validés, recette réelle o2switch encore requise. Ne pas déployer sur un site de production existant." \
+            --prerelease
+      - name: Archive obsolete branches then keep main only
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view v3.0.0-beta.1 >/dev/null
+          for branch in \
+            demo/artisan-catalog \
+            feature/flight-starter-v2 \
+            feature/mcp-native \
+            feature/one-zip-installer-admin-mcp \
+            feature/v3-codegraft-native \
+            feature/web-installer-v2-1; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
+            if [ -z "$SHA" ]; then
+              echo "Already absent: $branch"
+              continue
+            fi
+            ARCHIVE="refs/tags/archive/2026-11-04/$branch"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=$ARCHIVE" -f "sha=$SHA" >/dev/null
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+            echo "Archived and removed $branch"
+          done

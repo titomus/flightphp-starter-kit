@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Flight Starter Kit 2.1 – drop this ONE file in the site's /public directory.
+ * Flight Starter Kit V3 – self-contained local distribution installer.
  *
  * Requirements: document root = /path/to/project/public, PHP >=8.2, HTTPS,
  * cURL, ZipArchive, PDO SQLite. Secrets are never embedded in this file.
@@ -12,11 +12,8 @@ declare(strict_types=1);
  *   ../.flight-install-access
  * Read it with your hosting File Manager, then paste it in the unlock form.
  *
- * The private GitHub repository is accessed with a short-lived, read-only
- * token supplied for the installation request only, never saved to disk.
+ * The runtime is bundled in the private parent directory. No GitHub credentials.
  */
-const FLIGHT_REPO = 'titomus/flightphp-starter-kit';
-const FLIGHT_ASSET = 'flight-starter-runtime.zip';
 const FLIGHT_MAX_ZIP_BYTES = 188743680;  // 180 MiB
 const FLIGHT_MAX_UNPACKED = 420000000;
 const FLIGHT_MAX_ENTRIES = 40000;
@@ -29,94 +26,6 @@ function h(mixed $value): string
 function problem(string $message): never
 {
     throw new RuntimeException($message);
-}
-
-function githubRequest(string $url, string $token, ?string $destination = null): string
-{
-    if (!str_starts_with($url, 'https://api.github.com/repos/' . FLIGHT_REPO . '/releases/')) {
-        problem('Destination GitHub non autorisée.');
-    }
-    $curl = curl_init($url);
-    if ($curl === false) problem('Impossible de contacter GitHub.');
-    $bytes = 0;
-    $response = '';
-    $file = $destination === null ? null : fopen($destination, 'wb');
-    if ($destination !== null && !$file) problem('Impossible de créer l’archive temporaire.');
-    try {
-        curl_setopt_array($curl, [
-            CURLOPT_USERAGENT => 'FlightStarterWebInstaller/2.1',
-            CURLOPT_RETURNTRANSFER => false,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_TIMEOUT => 220,
-            CURLOPT_HTTPHEADER => [
-                'Accept: ' . ($destination === null ? 'application/vnd.github+json' : 'application/octet-stream'),
-                'Authorization: Bearer ' . $token,
-                'X-GitHub-Api-Version: 2022-11-28',
-            ],
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$bytes, &$response, $file): int {
-                $len = strlen($chunk);
-                $bytes += $len;
-                if ($bytes > ($file ? FLIGHT_MAX_ZIP_BYTES : 1024 * 1024)) {
-                    return 0;
-                }
-                if ($file) {
-                    $written = fwrite($file, $chunk);
-                    return $written === false ? 0 : $written;
-                }
-                $response .= $chunk;
-                return $len;
-            },
-        ]);
-        $ok = curl_exec($curl);
-        $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        if ($ok === false || $status !== 200) {
-            problem('Téléchargement GitHub impossible (HTTP ' . $status . '). Vérifiez le tag et les droits du jeton.');
-        }
-    } finally {
-        curl_close($curl);
-        if ($file) fclose($file);
-    }
-    return $response;
-}
-
-function obtainPackage(string $tag, string $token, string $expectedSha, string $zipPath): void
-{
-    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/D', $tag)) {
-        problem('Nom de version GitHub invalide.');
-    }
-    if (!preg_match('/^[a-f0-9]{64}$/D', strtolower($expectedSha))) {
-        problem('Empreinte SHA-256 de la distribution obligatoire.');
-    }
-    $json = githubRequest('https://api.github.com/repos/' . FLIGHT_REPO . '/releases/tags/' . rawurlencode($tag), $token);
-    $release = json_decode($json, true, 32, JSON_THROW_ON_ERROR);
-    $asset = null;
-    foreach ($release['assets'] ?? [] as $candidate) {
-        if (($candidate['name'] ?? '') === FLIGHT_ASSET) {
-            $asset = $candidate;
-            break;
-        }
-    }
-    if (!is_array($asset) || !is_numeric($asset['id'] ?? null)) {
-        problem('Cette version ne propose pas encore la distribution ' . FLIGHT_ASSET . '.');
-    }
-    $digest = (string) ($asset['digest'] ?? '');
-    if (str_starts_with($digest, 'sha256:')
-        && !hash_equals(strtolower(substr($digest, 7)), strtolower($expectedSha))) {
-        problem('La somme de contrôle attendue diffère de celle publiée par GitHub.');
-    }
-    githubRequest('https://api.github.com/repos/' . FLIGHT_REPO . '/releases/assets/' . (int) $asset['id'],
-        $token, $zipPath);
-    $actual = hash_file('sha256', $zipPath);
-    if ($actual === false || !hash_equals(strtolower($expectedSha), strtolower($actual))) {
-        @unlink($zipPath);
-        problem('Empreinte SHA-256 incorrecte. Installation interrompue.');
-    }
 }
 
 function expandSafeZip(string $zipFile, string $folder): void
@@ -212,7 +121,7 @@ footer{max-width:1000px;margin:0 auto;padding:30px 25px;color:#94a693;font-size:
 CSS;
     echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         . '<title>' . h($title) . ' | Flight Starter Kit</title><style>' . $styles . '</style></head><body>'
-        . '<header><strong>✳ flight<span>starter.</span></strong></header><main><span class="eyebrow">FlightPHP · Assistant d’installation v2.1</span>'
+        . '<header><strong>✳ flight<span>starter.</span></strong></header><main><span class="eyebrow">FlightPHP · Assistant d’installation V3</span>'
         . '<h1>' . h($title) . '</h1>' . $body . '</main><footer>Un site autonome, avec ou sans MCP.</footer></body></html>';
     exit;
 }
@@ -310,26 +219,18 @@ if (empty($_SESSION['flight_unlocked'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_install'] ?? '') === '1') {
-    $scratch = null;
     try {
-        foreach (['curl', 'zip', 'pdo_sqlite', 'mbstring'] as $ext) {
+        foreach (['zip', 'pdo_sqlite', 'mbstring', 'openssl', 'fileinfo'] as $ext) {
             if (!extension_loaded($ext)) problem('Extension PHP requise : ' . $ext);
         }
         $input = $_POST;
-        $tag = (string) ($input['release_tag'] ?? 'v2.1.0');
-        $token = (string) ($input['github_token'] ?? '');
-        $sha = (string) ($input['archive_sha256'] ?? '');
-        if (strlen($token) < 20 || strlen($token) > 500) problem('Jeton GitHub temporaire manquant.');
-        // Unlock long-running hosting request when PHP supports it.
+        $unpacked = $root . '/.flight-package';
+        if (!is_file($unpacked . '/installer/WebInstallEngine.php')
+            || !is_file($unpacked . '/runtime/vendor/autoload.php')
+            || !is_file($unpacked . '/distribution.json')) {
+            problem('Distribution locale incomplète. Décompressez le ZIP V3 complet.');
+        }
         @set_time_limit(240);
-        $scratch = $root . '/.flight-download-' . bin2hex(random_bytes(9));
-        if (!mkdir($scratch, 0700)) problem('Dossier de téléchargement non accessible.');
-        $zip = $scratch . '/distribution.zip';
-        obtainPackage($tag, $token, $sha, $zip);
-        unset($token, $input['github_token']);
-        $unpacked = $scratch . '/bundle';
-        if (!mkdir($unpacked, 0700)) problem('Impossible d’extraire le paquet.');
-        expandSafeZip($zip, $unpacked);
         require_once $unpacked . '/installer/WebInstallEngine.php';
         $details = WebInstallEngine::install($unpacked, $root, $input);
         if (file_put_contents($root . '/.flight-installed.lock', gmdate('c'), LOCK_EX) === false) {
@@ -337,10 +238,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_install'] ?? '') === '1')
         }
         chmod($root . '/.flight-installed.lock', 0600);
         @unlink($accessFile);
+        // Remove the private distribution only after activation and lock succeed.
+        // A failed installation keeps its verified package for a retry.
+        WebInstallEngine::removeDirectory($unpacked);
         $_SESSION = [];
         session_destroy();
-        WebInstallEngine::removeDirectory($scratch);
-        $scratch = null;
+
         @unlink(__FILE__);
         $body = '<p class="ok">Votre application est installée. Les comptes et les migrations sont initialisés.</p>'
             . '<section><p><strong>' . h($details['features']['type']) . '</strong> · ' . h($details['features']['design']) . '</p>'
@@ -353,13 +256,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_install'] ?? '') === '1')
         $body .= '</section>';
         displayPage('Installation terminée', $body);
     } catch (Throwable $e) {
-        if ($scratch !== null && is_dir($scratch)) {
-            // The engine can leave a private staging directory for diagnostics,
-            // but the temporary release contains no credentials and is removed.
-            if (class_exists('WebInstallEngine')) {
-                WebInstallEngine::removeDirectory($scratch);
-            }
-        }
         http_response_code(400);
         displayPage('Installation interrompue',
             '<p class="error">' . h($e->getMessage()) . '</p>'
@@ -385,13 +281,9 @@ $form = '<p>Choisissez une base de départ. Les fonctionnalités métier pourron
     . '<label><input type="hidden" name="stripe" value="0"><input type="checkbox" name="stripe" value="1"> Module Stripe</label>'
     . '</div><div class="warn">Les versions « blog » et « site vitrine » fournissent pour l’instant la structure et le thème, pas encore un CMS éditorial complet. '
     . 'Les paiements Stripe nécessiteront une configuration ultérieure des clés.</div></section>'
-    . '<section style="margin-top:20px"><span class="eyebrow">Distribution GitHub vérifiée</span>'
-    . '<p>Le dépôt étant privé, entrez un jeton GitHub en lecture seule, la version publiée et son empreinte SHA-256. Le jeton ne sera jamais enregistré.</p>'
-    . '<fieldset><label>Version GitHub<input name="release_tag" value="v2.1.0" required pattern="[A-Za-z0-9_.-]+"></label>'
-    . '<label>SHA-256 de l’archive<input name="archive_sha256" required pattern="[A-Fa-f0-9]{64}" placeholder="64 caractères hexadécimaux"></label></fieldset>'
-    . '<label>Jeton GitHub temporaire<input type="password" name="github_token" required autocomplete="new-password"></label>'
-    . '<button type="submit">Installer mon application ↗</button><p><small>PHP 8.2+, SQLite, cURL, ZIP, domaine HTTPS et racine /public requis. '
-    . 'Aucun Node.js ni Composer sur cet hébergement.</small></p></section></form>';
+    . '<section style="margin-top:20px"><span class="eyebrow">Distribution locale V3</span>'
+    . '<p>Le moteur, les dépendances PHP et les assets sont déjà dans le ZIP. Aucun compte GitHub, téléchargement externe, Composer ou Node.js requis.</p>'
+    . '<button type="submit">Installer mon application ↗</button><p><small>PHP 8.2+, SQLite, ZIP, domaine HTTPS et racine /public requis.</small></p></section></form>';
 
 // Convenience only: the server validates all dependencies independently.
 $enhancement = <<<'JS'
