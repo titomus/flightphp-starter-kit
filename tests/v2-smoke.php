@@ -77,6 +77,8 @@ try {
     require $root . '/app/Mcp/CodeWorkspace.php';
     require $root . '/app/Mcp/DynamicOAuth.php';
     require $root . '/app/Mcp/CodeGraftFactory.php';
+    require $root . '/app/Actions/ActionContext.php';
+    require $root . '/app/Actions/BusinessActionRegistry.php';
 
     assertV2(\App\Mcp\DynamicOAuth::validChatGptRedirect(
         'https://chatgpt.com/connector/oauth/client-test'
