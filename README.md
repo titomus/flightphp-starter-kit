@@ -39,6 +39,7 @@ Vous avez besoin d'un SaaS, d'un outil métier, d'un blog ou d'un site vitrine. 
 - **Interface** : Vite, Tailwind, HTMX, Alpine.js et presets pour SaaS, métier ou éditorial.
 - **Installation autonome** : runtime PHP et assets précompilés dans la Release.
 - **CodeGraft natif** : développement piloté par IA, permissions configurables, validation, historique et restauration.
+- **MCP Native Actions** : une action métier déclarée une fois génère son endpoint web et son outil MCP, avec la même autorisation et le même service.
 
 ## Installation sur o2switch / hébergement PHP
 
@@ -73,6 +74,19 @@ L'interface **Administration → CodeGraft** sert à définir les dossiers en le
 **Les permissions sont relues à chaque appel MCP**, sans recharge du connecteur ChatGPT. L'écriture est désactivée par défaut. Un déploiement exige l'accord du propriétaire, la permission OAuth correspondante et le verrou serveur `ATELIER_CODE_UPDATES_ENABLED=true` dans le `.env` privé.
 
 Les secrets, le framework central, l'authentification, les migrations et CodeGraft lui-même restent protégés. L'écriture distante de PHP reste sensible : les contrôles syntaxiques et le rollback **ne remplacent pas** les tests fonctionnels ni la sauvegarde de la base.
+
+## MCP Native Actions : une fonctionnalité, deux interfaces
+
+Chaque nouvelle action métier se déclare dans `app/Actions/business.php` : nom, paramètres, permissions, traitement et identité/tenant. Le Starter génère automatiquement les deux accès :
+
+- **Web :** `POST /business/actions/{nom}`, avec session authentifiée et protection CSRF.
+- **MCP :** `business_{nom}`, accessible avec les scopes OAuth métier adaptés.
+
+Les deux appellent la **même fonction PHP**, sans dupliquer la logique dans `app/Mcp/tools.php`. L'administration CodeGraft affiche les actions et leur statut de parité ; la commande `php app/Console/check_mcp_parity.php` valide leurs contrats.
+
+Ce moteur ne transforme pas automatiquement des routes PHP arbitraires : pour conserver la parité, les nouvelles fonctionnalités doivent être définies dans le registre. **Actuellement l'OAuth MCP du Starter authentifie les administrateurs uniquement**. Les actions propres aux membres ou à une entreprise demandent encore une authentification MCP membre/tenant liée côté serveur ; faute de liaison sûre, elles sont refusées.
+
+[Guide d'utilisation de MCP Native Actions](docs/MCP_NATIVE_ACTIONS.md)
 
 ## Quelle différence avec CodeGraft autonome ?
 
