@@ -4,7 +4,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/dist}"
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
-VERSION="${VERSION:-v3.0.0-alpha.1}"
+VERSION="${VERSION:-v3.0.0-beta.1}"
 [[ "$VERSION" =~ ^v3\.[0-9]+\.[0-9]+-(alpha|beta)\.[0-9]+$ ]] || { echo "Invalid prerelease version" >&2; exit 1; }
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
