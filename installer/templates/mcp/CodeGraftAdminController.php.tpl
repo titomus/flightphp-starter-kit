@@ -86,6 +86,13 @@ final class McpSettingsController extends BaseController
                 'ORDER BY c.created_at DESC LIMIT 30'
             );
             $query->execute(['owner' => $id, 'now' => time()]);
+            // A malformed client action must not lock the owner out of CodeGraft.
+            try {
+                $businessActionParity = BusinessActionRegistry::fromApplication()->report();
+            } catch (\Throwable $problem) {
+                $businessActionParity = ['count' => 0, 'paired' => 0, 'actions' => [],
+                    'error' => $problem->getMessage()];
+            }
             echo $this->view('admin.mcp-settings', [
                 'title' => 'CodeGraft · IA & MCP',
                 'adminPath' => config('backoffice.path', '/admin'),
@@ -97,7 +104,7 @@ final class McpSettingsController extends BaseController
                 'history' => $history,
                 'audit' => CodeGraftFactory::recentAudit(50),
                 'clients' => $query->fetchAll(\PDO::FETCH_ASSOC),
-                'businessActionParity' => BusinessActionRegistry::fromApplication()->report(),
+                'businessActionParity' => $businessActionParity,
                 'notice' => flash_get('mcp.message'),
             ], 'admin.layouts.main');
         } catch (\Throwable $e) {
