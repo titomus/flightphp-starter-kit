@@ -117,7 +117,9 @@ final class Policy
         foreach ([
             'app/CodeGraft', 'app/Mcp/CodeGraftFactory.php', 'app/Mcp/CodeWorkspace.php',
             'app/Mcp/DynamicOAuth.php', 'app/Mcp/HttpEndpoint.php', 'app/Mcp/Server.php',
-            'app/Mcp/tools.php', 'app/routes/mcp.php', 'app/routes/web.php',
+            'app/Mcp/tools.php', 'app/routes', 'app/Actions/ActionContext.php',
+            'app/Actions/BusinessActionRegistry.php', 'app/Controllers/Business/WebActionController.php',
+            'app/Console/check_mcp_parity.php',
             'app/Controllers/Admin', 'app/Controllers/Auth', 'app/Middleware',
             'app/Database', 'app/Support', 'app/Console', 'app/config',
             'app/Services/Auth.php', 'app/Services/Database.php',

@@ -66,6 +66,19 @@ if (in_array(DynamicOAuth::EVOLVE, $allowedScopes, true) && $adminId > 0) {
     ];
 }
 
+// MCP Native Actions are discovered from the same registry as web actions.
+// Only an authenticated OAuth admin can expose a business tool. Each call
+// rechecks the actor scope, tenant binding and the per-action ACL.
+$nativeActions = (new \{{namespace}}\Actions\BusinessActionRegistry(
+    require dirname(__DIR__) . '/Actions/business.php'
+))->mcpTools($principal ?? []);
+foreach ($nativeActions as $name => $definition) {
+    if (isset($tools[$name])) {
+        throw new \RuntimeException('Duplicate native business action tool: ' . $name);
+    }
+    $tools[$name] = $definition;
+}
+
 // Business tools are defined by the client project, not by the framework.
 // Handlers must delegate to the same services as the web interface.
 $businessTools = require __DIR__ . '/business_tools.php';

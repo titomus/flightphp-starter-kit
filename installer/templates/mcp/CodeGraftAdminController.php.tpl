@@ -7,6 +7,7 @@ use {{namespace}}\Controllers\BaseController;
 use {{namespace}}\Mcp\CodeGraftFactory;
 use {{namespace}}\Services\Database;
 use CodeGraft\Admin as CodeGraftAdmin;
+use {{namespace}}\Actions\BusinessActionRegistry;
 
 final class McpSettingsController extends BaseController
 {
@@ -96,6 +97,7 @@ final class McpSettingsController extends BaseController
                 'history' => $history,
                 'audit' => CodeGraftFactory::recentAudit(50),
                 'clients' => $query->fetchAll(\PDO::FETCH_ASSOC),
+                'businessActionParity' => BusinessActionRegistry::fromApplication()->report(),
                 'notice' => flash_get('mcp.message'),
             ], 'admin.layouts.main');
         } catch (\Throwable $e) {

@@ -129,4 +129,30 @@ $on = !empty($policy['enabled']);
         </table></div>
         <?php endif; ?>
     </div>
+
+    <div class="surface-card p-6 mt-6">
+        <h2 class="text-xl font-bold">6. MCP Native Actions · Parité métier</h2>
+        <p class="muted-copy mt-2">Chaque action déclarée dans <code>app/Actions/business.php</code> est accessible via le même service PHP depuis l'interface web et un outil MCP. Les contrôles d'identité, de tenant et de portée sont appliqués à chaque requête.</p>
+        <p class="mt-3"><strong><?= (int) ($businessActionParity['paired'] ?? 0) ?></strong> action(s) web + MCP validées</p>
+        <?php if (empty($businessActionParity['actions'])): ?>
+            <p class="muted-copy mt-3">Aucune action métier enregistrée. Déclarez la première action dans <code>app/Actions/business.php</code>. Le MCP est créé automatiquement, sans modifier <code>tools.php</code>.</p>
+        <?php else: ?>
+            <div style="overflow-x:auto;margin-top:12px">
+                <table style="width:100%;border-collapse:collapse">
+                    <thead><tr><th align="left">Action</th><th align="left">Mode</th><th align="left">Outil MCP</th><th align="left">Parité</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($businessActionParity['actions'] as $entry): ?>
+                        <tr style="border-top:1px solid #dde6e2">
+                            <td style="padding:10px"><strong><?= $esc($entry['name']) ?></strong><small style="display:block"><?= $esc($entry['description']) ?></small></td>
+                            <td><?= $esc($entry['mode']) ?></td>
+                            <td><code><?= $esc($entry['tool']) ?></code></td>
+                            <td>Web + MCP ✓</td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+        <p class="muted-copy mt-3">Vérification CLI : <code>php app/Console/check_mcp_parity.php</code>. Les anciens outils définis manuellement dans <code>business_tools.php</code> restent utilisables, mais ne bénéficient pas de ce contrôle de parité.</p>
+    </div>
 </section>

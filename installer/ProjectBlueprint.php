@@ -72,6 +72,7 @@ final class ProjectBlueprint
             array_push($directories,
                 'app/Mcp',
                 'app/CodeGraft',
+                'app/Actions',
                 'app/Controllers/Business',
                 'app/Services/Business',
                 'app/Models/Business',
