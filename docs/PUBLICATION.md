@@ -1,42 +1,32 @@
-# Publier Flight Starter Kit sur GitHub
+# Publier Flight Starter Kit
 
-## Le bon lien pour un abonné
+## Un seul téléchargement officiel
 
-Ne communiquez pas `Code → Download ZIP` pour une installation : ce bouton récupère le **code source** de la branche affichée.
+- **[Flight Starter Kit V3 v3.0.0-beta.1](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.1)**
+- **[ZIP autonome installable](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.1/flight-starter-v3.0.0-beta.1.zip)**
+- **[Empreinte SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.1/flight-starter-v3.0.0-beta.1.zip.sha256)**
 
-Pour installer par formulaire, il faut une **Release** qui contient :
-- `install.php` : le lanceur à déposer dans `public/`.
-- `flight-starter-runtime.zip` : dépendances `vendor` et thèmes Vite déjà compilés.
-- `flight-starter-runtime.zip.sha256` : empreinte pour contrôler l'intégrité du paquet.
+Pour installer, communiquer **la Release GitHub**. `Code → Download ZIP` ne contient que les sources ; les artefacts GitHub Actions expirent et ne constituent pas un lien de distribution pérenne.
 
-La première version bêta est publiée : https://github.com/titomus/flightphp-starter-kit/releases/tag/v2.1.0-beta.1
+## Organisation du dépôt
 
-Après la publication d'une version non préliminaire, l'adresse https://github.com/titomus/flightphp-starter-kit/releases/latest pointera automatiquement sur **la dernière stable**. Les préversions bêta ne sont pas retenues par `/releases/latest`.
+- `main` : **seule branche de développement active** et référence du code.
+- **Releases** : versions téléchargeables, immuables et associées à un tag.
+- `archive/2026-11-04/...` : tags conservant les anciennes pointes de branches, pour récupération historique sans multiplier les branches actives.
+- `v2.1.0-beta.1` : ancienne Release conservée pour traçabilité, **pas** la version à installer pour un nouveau projet.
 
-## Règles de version
+## Cycle d'une nouvelle Release
 
-- `main` = code source de référence, actuellement **bêta technique**, pas un paquet installable.
-- `feature/...` = nouvelles fonctions non diffusées.
-- `demo/...` = laboratoires et preuves de concept séparés.
-- `v2.1.0-beta.1` = préversion destinée aux tests sur des sites vierges.
-- `v2.1.0` = future stable uniquement après tests et revue de sécurité.
+1. Modifier le code sur `main` et vérifier que le workflow `Flight Starter V3 one ZIP validation` réussit.
+2. Incrémenter **ensemble** la version dans `scripts/build-v3-one-zip.sh`, `.github/workflows/flight-v3-one-zip.yml` et les liens de `README.md`.
+3. Le workflow compile les dépendances et les assets, exécute les tests de génération et d'installation, vérifie l'intégrité et le poids du ZIP, puis crée **une Release préliminaire** depuis `main` si le tag n'existe pas.
+4. Vérifier les deux pièces jointes (ZIP et SHA-256) sur la page de Release et tester sur un sous-domaine o2switch vierge.
+5. Ne jamais remplacer silencieusement une archive déjà diffusée. Utiliser un **nouveau numéro de version**.
 
-## Publication bêta depuis GitHub (sans console)
+Les préversions bêta ne sont pas forcément accessibles via `/releases/latest`, qui privilégie les versions stables. Pour les utilisateurs, privilégier le lien de Release indiqué sur la page d'accueil GitHub.
 
-1. Vérifier que `main` contient la version voulue et que **Actions** est vert.
-2. Aller dans **Actions → Flight Starter Kit 2.1 web installer → Run workflow**.
-3. Sélectionner `main`, puis choisir un numéro **inédit**, par exemple `v2.1.0-beta.2`.
-4. Le workflow compile Composer et Vite, vérifie le ZIP, installe un vrai site temporaire, contrôle ses routes HTTP et OAuth, et publie les trois pièces jointes dans une Release marquée **Pre-release**.
-5. Télécharger l'archive de cette release et valider réellement le formulaire sur o2switch. Corriger les problèmes et créer une nouvelle version bêta, **sans remplacer silencieusement un ZIP déjà utilisé**.
+## Niveau de confiance
 
-À ce stade il n'y a **pas de stable automatique** : la publication stable restera une décision explicite après validation terrain. Ne pas annoncer une bêta comme une version prête à installer chez un client.
+La publication V3 est une bêta technique validée par CI, pas une version prête à écraser les sites existants. Les tests réels sur o2switch, OAuth et restauration restent nécessaires pour une stable.
 
-## Visibilité
-
-Le dépôt Flight Starter Kit est **public**. Une Release publique est accessible par n'importe qui avec le lien. Pour limiter les téléchargements à des abonnés payants, distribuer plutôt les archives via un espace membre ; GitHub public ne distingue pas automatiquement les abonnés du reste des visiteurs.
-
-## Ce que GitHub garde
-
-Les pièces jointes d'une Release sont persistantes. Les artefacts des tests GitHub Actions sont temporaires et peuvent expirer. Pour des liens commerciaux, **préférer Releases**, pas les artefacts Actions.
-
-La première bêta est publiée. Les futures versions devront être publiées avec un nouveau numéro.
+Le dépôt est **public**. Une Release publique est accessible à tous. Pour distribuer seulement aux abonnés, utiliser un espace membre ou un canal de livraison privé plutôt qu'un lien GitHub public.
