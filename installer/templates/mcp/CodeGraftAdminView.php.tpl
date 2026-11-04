@@ -134,6 +134,9 @@ $on = !empty($policy['enabled']);
         <h2 class="text-xl font-bold">6. MCP Native Actions · Parité métier</h2>
         <p class="muted-copy mt-2">Chaque action déclarée dans <code>app/Actions/business.php</code> est accessible via le même service PHP depuis l'interface web et un outil MCP. Les contrôles d'identité, de tenant et de portée sont appliqués à chaque requête.</p>
         <p class="mt-3"><strong><?= (int) ($businessActionParity['paired'] ?? 0) ?></strong> action(s) web + MCP validées</p>
+        <?php if (!empty($businessActionParity['error'])): ?>
+            <p class="mt-3" style="color:#b91c1c"><strong>Contrat métier invalide :</strong> <?= $esc($businessActionParity['error']) ?>. Corrigez app/Actions/business.php ; aucune action invalide ne sera exposée.</p>
+        <?php endif; ?>
         <?php if (empty($businessActionParity['actions'])): ?>
             <p class="muted-copy mt-3">Aucune action métier enregistrée. Déclarez la première action dans <code>app/Actions/business.php</code>. Le MCP est créé automatiquement, sans modifier <code>tools.php</code>.</p>
         <?php else: ?>
