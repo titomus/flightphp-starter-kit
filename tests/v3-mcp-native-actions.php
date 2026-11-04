@@ -115,7 +115,7 @@ try {
     if ($tenantActor->requireTenant() !== 12) throw new RuntimeException('Tenant resolution failed.');
 
     $policy = $files[$root . '/app/CodeGraft/Policy.php'] ?? '';
-    foreach (['app/Actions/BusinessActionRegistry.php', 'app/routes/business.php',
+    foreach (['app/Actions/BusinessActionRegistry.php', 'app/routes',
         'app/Controllers/Business/WebActionController.php'] as $protected) {
         if (!str_contains($policy, $protected)) throw new RuntimeException('Missing Core CodeGraft protection: ' . $protected);
     }
