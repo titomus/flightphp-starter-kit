@@ -35,6 +35,11 @@ final class CodeGraftFactory
         $vaultDir = $configured !== ''
             ? $configured
             : dirname($root) . '/.codegraft-vault-' . substr(hash('sha256', $root), 0, 12);
+        // A sibling vault beneath public_html/ or www/ could be exposed by
+        // another virtual host. Never guess in that layout.
+        if ($configured === '' && preg_match('~/(?:public_html|www|htdocs|httpdocs|web)$~iD', rtrim(dirname($root), '/'))) {
+            throw new \RuntimeException('Set CODEGRAFT_VAULT_DIR to a private path outside public_html.');
+        }
         if (!str_starts_with($vaultDir, '/') || is_link($vaultDir)) {
             throw new \RuntimeException('CODEGRAFT_VAULT_DIR must be an absolute private directory.');
         }
