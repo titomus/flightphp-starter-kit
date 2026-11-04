@@ -73,7 +73,7 @@ final class McpSettingsController extends BaseController
     {
         try {
             $vault = CodeGraftFactory::vault();
-            $history = CodeGraftFactory::workspace()->history(25)['releases'] ?? [];
+            $history = (!empty($vault->policy()['enabled']) && !empty($vault->policy()['permissions']['history'])) ? (CodeGraftFactory::workspace()->history(25)['releases'] ?? []) : [];
             $admin = auth('admin')->user();
             $id = (int) ($admin['id'] ?? 0);
             $query = Database::connection()->prepare(
