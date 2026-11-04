@@ -1107,10 +1107,14 @@ final class StripeBilling
         $resolvedKey = trim((string) ($planKey ?? $defaultPlan));
 
         if ($resolvedKey !== '' && isset($plans[$resolvedKey]) && is_array($plans[$resolvedKey])) {
+            if (array_key_exists('enabled', $plans[$resolvedKey]) && $plans[$resolvedKey]['enabled'] !== true) {
+                throw new RuntimeException('This Stripe plan is not active.');
+            }
             return ['key' => $resolvedKey] + $plans[$resolvedKey];
         }
 
-        if ($defaultPlan !== '' && isset($plans[$defaultPlan]) && is_array($plans[$defaultPlan])) {
+        if ($defaultPlan !== '' && isset($plans[$defaultPlan]) && is_array($plans[$defaultPlan])
+            && (!array_key_exists('enabled', $plans[$defaultPlan]) || $plans[$defaultPlan]['enabled'] === true)) {
             return ['key' => $defaultPlan] + $plans[$defaultPlan];
         }
 

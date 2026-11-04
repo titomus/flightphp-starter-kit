@@ -1554,6 +1554,7 @@ PHP;
 
     <div class="mt-8 grid gap-5 md:grid-cols-3">
         <?php foreach ((array) $plans as $planKey => $plan): ?>
+            <?php if (array_key_exists('enabled', $plan) && $plan['enabled'] !== true) continue; ?>
             <article class="surface-card <?= !empty($plan['highlight']) ? 'feature-card--highlight' : '' ?> p-6">
                 <p class="eyebrow"><?= htmlspecialchars((string) ($plan['label'] ?? $planKey), ENT_QUOTES, 'UTF-8') ?></p>
                 <h2 class="display-title mt-3 text-3xl"><?= number_format(((int) ($plan['amount'] ?? 0)) / 100, 0, ',', ' ') ?> <?= htmlspecialchars(strtoupper((string) ($plan['currency'] ?? $currency)), ENT_QUOTES, 'UTF-8') ?></h2>
@@ -1562,7 +1563,7 @@ PHP;
                 <form class="mt-6 space-y-4" method="post" action="<?= htmlspecialchars((string) $checkoutPath, ENT_QUOTES, 'UTF-8') ?>">
                     <?= csrf_field() ?>
                     <input type="hidden" name="plan" value="<?= htmlspecialchars((string) $planKey, ENT_QUOTES, 'UTF-8') ?>">
-                    <button class="button-primary w-full justify-center" type="submit" <?= empty($stripeEnabled) ? 'disabled' : '' ?>><?= !empty($stripeEnabled) ? (($planKey === $defaultPlan) ? 'Plan recommandé' : 'Choisir ce plan') : 'Configurer Stripe dans .env' ?></button>
+                    <button class="button-primary w-full justify-center" type="submit" <?= empty($stripeEnabled) ? 'disabled' : '' ?>><?= !empty($stripeEnabled) ? (($planKey === $defaultPlan) ? 'Plan recommandé' : 'Choisir ce plan') : 'Configurer Stripe depuis Administration' ?></button>
                 </form>
             </article>
         <?php endforeach; ?>
