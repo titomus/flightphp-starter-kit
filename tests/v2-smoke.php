@@ -87,10 +87,10 @@ try {
     // tools.php is evaluated with the authenticated caller identity from HttpEndpoint.
     $mcpPrincipal = ['admin_id' => 1, 'scopes' => ['business:read', 'app:evolve', 'app:deploy']];
     $tools = require $root . '/app/Mcp/tools.php';
-    assertV2(isset($tools['app_info'], $tools['dev_list_files'], $tools['dev_read_file'],
-        $tools['dev_prepare_patch'], $tools['dev_validate_patch'],
-        $tools['dev_deploy'], $tools['dev_rollback'], $tools['dev_history']),
-        'Client-neutral developer toolset generated');
+    assertV2(isset($tools['app_info'], $tools['cg_list_files'], $tools['cg_read_files'],
+        $tools['cg_search'], $tools['cg_prepare_patch'], $tools['cg_validate_patch'],
+        $tools['cg_deploy_patch'], $tools['cg_rollback_patch'], $tools['cg_history']),
+        'Real CodeGraft developer toolset generated');
     $server = new \App\Mcp\Server($tools);
     $list = $server->handle('{"jsonrpc":"2.0","id":1,"method":"tools/list"}');
     assertV2(count($list['result']['tools'] ?? []) >= 8, 'MCP discovery returns v2 tools');
@@ -126,7 +126,7 @@ try {
     $noDeveloperPrincipal = ['admin_id' => 1, 'scopes' => ['business:read']];
     $mcpPrincipal = $noDeveloperPrincipal;
     $limitedTools = require $root . '/app/Mcp/tools.php';
-    assertV2(!isset($limitedTools['dev_deploy'], $limitedTools['dev_read_file']),
+    assertV2(!isset($limitedTools['cg_deploy_patch'], $limitedTools['cg_read_files']),
         'Basic business token cannot deploy or read source');
 
     echo "Flight Starter Kit v2 generic install, OAuth, MCP, business module deployment and rollback: PASS\n";

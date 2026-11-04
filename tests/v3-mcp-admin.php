@@ -24,7 +24,10 @@ try {
         [$controller, 'deployment-approval.json'],
         [$view, 'deployment_approved'],
         [$workspace, 'function deploymentAllowed'],
-        [$tools, 'CodeWorkspace::deploymentAllowed()'],
+        [$tools, 'CodeGraftFactory::deploymentAllowed()'],
+        [$tools, 'cg_deploy_patch'],
+        [$view, 'Dossiers autorisés en écriture'],
+        [$view, 'Journal des outils MCP CodeGraft'],
     ] as [$text, $expected]) {
         if (!str_contains($text, $expected)) {
             throw new RuntimeException('Missing V3 MCP approval: ' . $expected);

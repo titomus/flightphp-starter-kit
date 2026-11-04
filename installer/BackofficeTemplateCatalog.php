@@ -12,8 +12,8 @@ final class BackofficeTemplateCatalog
     {
         return [
             'app/Controllers/Admin/DashboardController.php' => $this->renderer->render($this->templateAdminDashboardController(), $vars),
-            'app/Controllers/Admin/McpSettingsController.php' => $this->renderer->render($this->templateMcpSettingsController(), $vars),
-            'app/Views/admin/mcp-settings.php' => $this->templateMcpSettingsView(),
+            'app/Controllers/Admin/McpSettingsController.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/mcp/CodeGraftAdminController.php.tpl'), $vars),
+            'app/Views/admin/mcp-settings.php' => (string) file_get_contents(__DIR__ . '/templates/mcp/CodeGraftAdminView.php.tpl'),
             'app/Controllers/Admin/LoginController.php' => $this->renderer->render($this->templateAdminLoginController(), $vars),
             'app/Database/Migrations/20260428000001_create_admin_users_table.php' => $this->templateBackofficeMigration(),
             'app/Models/User.php' => $this->renderer->render($this->templateUserModel(), $vars),
@@ -197,102 +197,6 @@ if ((bool) config('backoffice.enabled', false)) {
 PHP;
     }
 
-    private function templateMcpSettingsController(): string
-    {
-        return <<<'PHP'
-<?php
-
-declare(strict_types=1);
-
-namespace {{namespace}}\Controllers\Admin;
-
-use {{namespace}}\Controllers\BaseController;
-
-final class McpSettingsController extends BaseController
-{
-    private function approvalFile(): string
-    {
-        return dirname(__DIR__, 3) . '/app/storage/atelier/deployment-approval.json';
-    }
-
-    private function approved(): bool
-    {
-        $path = $this->approvalFile();
-        if (!is_file($path) || is_link($path)) {
-            return false;
-        }
-        $data = json_decode((string) file_get_contents($path), true);
-        return is_array($data) && ($data['approved'] ?? false) === true;
-    }
-
-    public function index(): void
-    {
-        echo $this->view('admin.mcp-settings', [
-            'title' => 'IA & MCP',
-            'adminPath' => config('backoffice.path', '/admin'),
-            'approved' => $this->approved(),
-            'serverEnabled' => filter_var((string) env('ATELIER_CODE_UPDATES_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN),
-            'message' => flash_get('mcp.message'),
-        ], 'admin.layouts.main');
-    }
-
-    public function update(): void
-    {
-        $approved = ($_POST['deployment_approved'] ?? '') === '1';
-        $path = $this->approvalFile();
-        $dir = dirname($path);
-        if (is_link($dir) || (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir))) {
-            throw new \RuntimeException('Cannot create private MCP settings directory.');
-        }
-        if (is_link($path)) {
-            throw new \RuntimeException('Invalid MCP settings path.');
-        }
-        $payload = json_encode([
-            'approved' => $approved,
-            'updated_at' => gmdate('c'),
-        ], JSON_THROW_ON_ERROR);
-        $temp = tempnam($dir, '.approval-');
-        if ($temp === false) {
-            throw new \RuntimeException('Cannot prepare MCP settings.');
-        }
-        try {
-            chmod($temp, 0600);
-            if (file_put_contents($temp, $payload, LOCK_EX) === false || !rename($temp, $path)) {
-                throw new \RuntimeException('Cannot save MCP settings.');
-            }
-        } finally {
-            if (is_file($temp)) unlink($temp);
-        }
-        flash_set('mcp.message', $approved ? 'Autorisation enregistrée.' : 'Déploiement révoqué.');
-        redirect((string) config('backoffice.path', '/admin') . '/mcp');
-    }
-}
-PHP;
-    }
-
-    private function templateMcpSettingsView(): string
-    {
-        return <<<'PHP'
-<section class="panel-card p-8">
-    <p class="eyebrow">Sécurité et intégrations</p>
-    <h1 class="display-title text-3xl">IA & MCP</h1>
-    <p class="muted-copy mt-3">Autorisez ou révoquez les déploiements de code depuis ChatGPT. Les droits OAuth restent accordés séparément à chaque connexion.</p>
-    <?php if (!empty($message)): ?><div class="notice notice--success mt-5"><?= htmlspecialchars((string) $message, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
-    <div class="surface-card p-6 mt-6">
-        <p><strong>Verrou serveur :</strong> <?= $serverEnabled ? 'Activé' : 'Désactivé' ?></p>
-        <p><strong>Approbation propriétaire :</strong> <?= $approved ? 'Accordée' : 'Révoquée' ?></p>
-        <p><strong>Déploiement effectif :</strong> <?= $serverEnabled && $approved ? 'Autorisé pour les clients OAuth disposant de app:deploy' : 'Bloqué' ?></p>
-        <form method="post" action="<?= htmlspecialchars($adminPath, ENT_QUOTES, 'UTF-8') ?>/mcp" class="space-y-5 mt-6">
-            <?= csrf_field() ?>
-            <label class="block"><input type="checkbox" name="deployment_approved" value="1" <?= $approved ? 'checked' : '' ?>> J’autorise les déploiements MCP (avec sauvegarde et confirmation).</label>
-            <button class="button-primary" type="submit">Enregistrer les autorisations</button>
-        </form>
-        <p class="muted-copy mt-4">L'activation nécessite aussi ATELIER_CODE_UPDATES_ENABLED=true côté serveur. Ce réglage ne modifie jamais le fichier .env.</p>
-    </div>
-</section>
-PHP;
-    }
-
     private function templateBackofficeSeeder(): string
     {
         return <<<'PHP'
@@ -329,7 +233,7 @@ PHP;
         <strong class="display-title text-lg tracking-wide"><?= htmlspecialchars(config('app.name', 'Flight Starter'), ENT_QUOTES, 'UTF-8') ?></strong>
         <div class="flex items-center gap-5 text-sm font-medium">
             <a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>">Dashboard</a>
-            <?php if (class_exists(\{{namespace}}\Mcp\CodeWorkspace::class)): ?><a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/mcp">IA & MCP</a><?php endif; ?>
+            <?php if (class_exists(\{{namespace}}\Mcp\CodeWorkspace::class)): ?><a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/mcp">CodeGraft</a><?php endif; ?>
             <a class="site-link" href="/">Site</a>
             <?php if (auth('admin')->check()): ?>
                 <form method="post" action="<?= htmlspecialchars(config('auth.guards.admin.logout_path', '/admin/logout'), ENT_QUOTES, 'UTF-8') ?>">
