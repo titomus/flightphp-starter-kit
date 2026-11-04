@@ -1,7 +1,7 @@
 name: Flight Starter V3 one ZIP validation
 on:
   push:
-    branches: [feature/one-zip-installer-admin-mcp]
+    branches: [feature/one-zip-installer-admin-mcp, feature/v3-codegraft-native]
   pull_request:
     branches: [main]
   workflow_dispatch:
