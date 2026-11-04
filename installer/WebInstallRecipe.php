@@ -35,6 +35,17 @@ final class WebInstallRecipe
         $members = self::flag($data, 'members', $defaults['members']);
         $mcp = self::flag($data, 'mcp', $defaults['mcp']);
         $stripe = self::flag($data, 'stripe', false);
+        $google = self::flag($data, 'google', false);
+        $github = self::flag($data, 'github', false);
+        $smtp = self::flag($data, 'smtp', false);
+        $preset = (string) ($data['design_preset'] ?? $defaults['design']);
+        $primary = trim((string) ($data['primary'] ?? ''));
+        $accent = trim((string) ($data['accent'] ?? ''));
+        if (!in_array($preset, ['saas','outil_metier','blog'], true)
+            || ($primary !== '' && !preg_match('/^#[a-fA-F0-9]{6}$/D', $primary))
+            || ($accent !== '' && !preg_match('/^#[a-fA-F0-9]{6}$/D', $accent))) {
+            throw new InvalidArgumentException('Thème ou couleurs invalides.');
+        }
 
         // Values are also embedded into older generated PHP templates and .env.
         // Restrict metacharacters until all templates escape each context.
@@ -69,7 +80,12 @@ final class WebInstallRecipe
             'members' => $members,
             'mcp' => $mcp,
             'stripe' => $stripe,
-            'preset' => $defaults['design'],
+            'preset' => $preset,
+            'primary' => $primary,
+            'accent' => $accent,
+            'google' => $google,
+            'github' => $github,
+            'smtp' => $smtp,
         ];
     }
 
@@ -92,7 +108,11 @@ final class WebInstallRecipe
         $config['frontend_auth']['registration_enabled'] = $validated['members'];
         $config['frontend_auth']['home_path'] = '/account';
         $config['mcp']['enabled'] = $validated['mcp'];
-        $config['stripe']['enabled'] = $validated['stripe'];
+        // Prepared modules remain OFF until their keys are supplied in admin.
+        $config['stripe']['enabled'] = false;
+        $config['social_auth']['google']['enabled'] = false;
+        $config['social_auth']['github']['enabled'] = false;
+        $config['mail']['default'] = 'log';
         $config['design']['preset'] = $validated['preset'];
         $config['design']['overrides'] = [];
         $config['database']['driver'] = 'sqlite';
