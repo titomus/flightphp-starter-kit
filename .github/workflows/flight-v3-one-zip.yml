@@ -93,3 +93,28 @@ jobs:
             --title "Flight Starter Kit V3 avec CodeGraft ($VERSION)" \
             --notes "Bêta technique autonome. Installation neuve uniquement ; PHP 8.2+, HTTPS et document root vers public/. CodeGraft natif avec administration. Tests et packaging GitHub Actions validés, recette réelle o2switch encore requise. Ne pas déployer sur un site de production existant." \
             --prerelease
+      - name: Archive obsolete branches then keep main only
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view v3.0.0-beta.1 >/dev/null
+          for branch in \
+            demo/artisan-catalog \
+            feature/flight-starter-v2 \
+            feature/mcp-native \
+            feature/one-zip-installer-admin-mcp \
+            feature/v3-codegraft-native \
+            feature/web-installer-v2-1; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha' 2>/dev/null || true)"
+            if [ -z "$SHA" ]; then
+              echo "Already absent: $branch"
+              continue
+            fi
+            ARCHIVE="refs/tags/archive/2026-11-04/$branch"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=$ARCHIVE" -f "sha=$SHA" >/dev/null
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+            echo "Archived and removed $branch"
+          done
