@@ -56,6 +56,24 @@ $modules=['members'=>'Membres','stripe'=>'Stripe','google'=>'Connexion Google','
                 placeholder="<?=$secret&&$current!==''?'Déjà configuré':''?>" autocomplete="off" maxlength="500" style="display:block;width:100%">
           </label>
         <?php endforeach;?>
+        <?php if($section==='stripe'):?>
+          <h3 style="font-weight:700;margin-top:20px">Offres Stripe</h3>
+          <p class="muted-copy">Activez uniquement les prix déjà créés dans votre tableau de bord Stripe. Les montants affichés sur le site doivent correspondre à Stripe.</p>
+          <?php $prices=(array)$v('stripe','plans',[]); foreach(['starter_monthly'=>'Mensuel','starter_yearly'=>'Annuel','lifetime'=>'Paiement unique'] as $plan=>$name):
+            $existing=config('billing.providers.stripe.plans.'.$plan,[]);
+            $savedPlan=(array)($prices[$plan]??[]);
+          ?>
+            <div style="padding:13px;border:1px solid #d7e2d8;border-radius:10px;margin:12px 0">
+              <label><input type="checkbox" name="plan_<?=$e($plan)?>" value="1" <?=!empty($savedPlan['enabled'])?'checked':''?>> <?=$e($name)?></label>
+              <label style="display:block;margin-top:10px">Price ID Stripe
+                <input name="price_<?=$e($plan)?>" maxlength="120" placeholder="price_..." value="<?=$e($savedPlan['price_id']??'')?>" style="display:block;width:100%">
+              </label>
+              <label style="display:block;margin-top:10px">Prix public (€ entiers)
+                <input name="amount_<?=$e($plan)?>" type="number" min="1" max="1000000" value="<?=$e(isset($savedPlan['amount']) && $savedPlan['amount']>0 ? (int)$savedPlan['amount']/100 : (int)($existing['amount']??0)/100)?>" style="display:block;width:100%">
+              </label>
+            </div>
+          <?php endforeach;?>
+        <?php endif;?>
       <?php endif;?>
       <label style="display:block;margin:20px 0 10px">Mot de passe propriétaire
         <input type="password" name="owner_password" required autocomplete="current-password" style="display:block;width:100%;max-width:360px">
