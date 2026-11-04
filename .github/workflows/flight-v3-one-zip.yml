@@ -37,6 +37,7 @@ jobs:
           php tests/v3-mcp-admin.php
           php tests/v3-codegraft-native.php
           php tests/v3-codegraft-flow.php
+          php tests/v3-mcp-native-actions.php
           php tests/v3-lean-google-oauth.php
           php tests/web-installer-smoke.php
           php tests/v2-smoke.php
