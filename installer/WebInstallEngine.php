@@ -104,6 +104,30 @@ final class WebInstallEngine
             }
             chmod($stage . '/.env', 0600);
 
+            // Appearance is an immediate runtime override: the prebuilt Vite
+            // theme never needs recompilation on the shared hosting server.
+            $initial = [
+                'design' => [],
+                'stripe' => ['enabled' => false],
+                'google' => ['enabled' => false],
+                'github' => ['enabled' => false],
+            ];
+            foreach (['primary', 'accent'] as $color) {
+                if ($validated[$color] !== '') {
+                    $initial['design'][$color] = $validated[$color];
+                }
+            }
+            $privateConfigDir = $stage . '/app/storage/config';
+            if (!is_dir($privateConfigDir) && !mkdir($privateConfigDir, 0700, true)) {
+                throw new RuntimeException('Impossible de créer le dossier des réglages.');
+            }
+            $initialPath = $privateConfigDir . '/runtime.json';
+            if (file_put_contents($initialPath,
+                json_encode($initial, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT), LOCK_EX) === false) {
+                throw new RuntimeException('Impossible d’enregistrer les choix de départ.');
+            }
+            chmod($initialPath, 0600);
+
             // Boot application in its isolated staging directory; the generated
             // console migrator runs inside the same PHP request.
             require $stage . '/app/bootstrap.php';
@@ -135,7 +159,12 @@ final class WebInstallEngine
                 'type' => $validated['type'],
                 'mcp' => $validated['mcp'],
                 'members' => $validated['members'],
-                'stripe' => $validated['stripe'],
+                'stripe_prepared' => $validated['stripe'],
+                'google_prepared' => $validated['google'],
+                'github_prepared' => $validated['github'],
+                'smtp_prepared' => $validated['smtp'],
+                'primary' => $validated['primary'],
+                'accent' => $validated['accent'],
                 'design' => $preset,
                 'created_at' => gmdate('c'),
             ];
