@@ -11,9 +11,9 @@
 
 ## Télécharger la version installable
 
-### [Télécharger Flight Starter Kit V3 (ZIP autonome)](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.2/flight-starter-v3.0.0-beta.2.zip)
+### [Télécharger Flight Starter Kit V3 (ZIP autonome)](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.3/flight-starter-v3.0.0-beta.3.zip)
 
-[Page de la version V3 et somme de contrôle SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.2) · [Toutes les versions](https://github.com/titomus/flightphp-starter-kit/releases)
+[Page de la version V3 et somme de contrôle SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.3) · [Toutes les versions](https://github.com/titomus/flightphp-starter-kit/releases)
 
 **Important :** utilisez le ZIP de la Release, pas `Code → Download ZIP`, qui ne contient que les sources. La branche `main` est la référence officielle du développement. La publication V3 est une **bêta de test** et ne doit pas écraser un projet existant.
 
@@ -40,6 +40,7 @@ Vous avez besoin d'un SaaS, d'un outil métier, d'un blog ou d'un site vitrine. 
 - **Installation autonome** : runtime PHP et assets précompilés dans la Release.
 - **CodeGraft natif** : développement piloté par IA, permissions configurables, validation, historique et restauration.
 - **MCP Native Actions** : une action métier déclarée une fois génère son endpoint web et son outil MCP, avec la même autorisation et le même service.
+- **Modules & réglages** : couleurs, SEO, membres, SMTP, Stripe et OAuth Google/GitHub configurables dans le back-office sans recoder l'application.
 
 ## Installation sur o2switch / hébergement PHP
 
@@ -56,6 +57,14 @@ Vous avez besoin d'un SaaS, d'un outil métier, d'un blog ou d'un site vitrine. 
 L'installateur vérifie son paquet local, génère l'application, prépare la base SQLite et crée le compte propriétaire. Il refuse d'écraser une application déjà installée et verrouille l'installation après succès.
 
 [Guide d'installation détaillé](docs/V3_INSTALLATION.md) · [Architecture CodeGraft intégrée](docs/V3_CODEGRAFT.md)
+
+## Configuration : simple au départ, évolutive ensuite
+
+L'installateur V3 offre les choix essentiels (projet, comptes membres, MCP, Stripe) et un volet facultatif pour le thème, les couleurs, Google, GitHub et SMTP. Les modules externes ne sont activés qu'après la saisie des identifiants.
+
+Après l'installation, ouvrez **Administration → Modules & réglages** (`/admin/settings`) pour modifier les couleurs, le logo, le SEO, les comptes membres et les fournisseurs Stripe, Google, GitHub et SMTP. Les clés sont stockées dans le dossier privé, jamais affichées sur la page.
+
+La configuration courante ne requiert pas CodeGraft. CodeGraft reste destiné aux nouvelles fonctionnalités métier. [Guide des modules et réglages](docs/MODULES_ET_REGLAGES.md).
 
 ## CodeGraft : développer votre application depuis ChatGPT
 

@@ -18,7 +18,7 @@ $tools = [
         'inputSchema' => ['type' => 'object', 'properties' => new \stdClass(), 'additionalProperties' => false],
         'handler' => static fn (array $args): array => [
             'name' => {{project_name_php}},
-            'flight_starter_version' => '3.0.0-beta.2',
+            'flight_starter_version' => '3.0.0-beta.3',
             'mcp_enabled' => true,
             'business_tools_enabled' => in_array(DynamicOAuth::READ, $allowedScopes, true),
             'code_deployment_enabled' => in_array(DynamicOAuth::DEPLOY, $allowedScopes, true) && CodeGraftFactory::deploymentAllowed(),

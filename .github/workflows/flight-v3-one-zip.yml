@@ -42,13 +42,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/v3-local-bundle"
-          unzip -q dist/flight-starter-v3.0.0-beta.2.zip -d "$RUNNER_TEMP/v3-local-bundle"
+          unzip -q dist/flight-starter-v3.0.0-beta.3.zip -d "$RUNNER_TEMP/v3-local-bundle"
           php tests/web-installer-smoke.php "$RUNNER_TEMP/v3-local-bundle/.flight-package"
           php -l "$RUNNER_TEMP/v3-local-bundle/public/install.php"
       - name: Inspect distribution
         run: |
           set -euo pipefail
-          ZIP=dist/flight-starter-v3.0.0-beta.2.zip
+          ZIP=dist/flight-starter-v3.0.0-beta.3.zip
           unzip -t "$ZIP" >/dev/null
           unzip -Z1 "$ZIP" | grep -q '^public/install.php$'
           unzip -Z1 "$ZIP" | grep -q '^.flight-package/installer/WebInstallEngine.php$'
@@ -67,8 +67,8 @@ jobs:
         with:
           name: flight-starter-v3-beta-one-zip
           path: |
-            dist/flight-starter-v3.0.0-beta.2.zip
-            dist/flight-starter-v3.0.0-beta.2.zip.sha256
+            dist/flight-starter-v3.0.0-beta.3.zip
+            dist/flight-starter-v3.0.0-beta.3.zip.sha256
           retention-days: 14
 
       - name: Publish tested V3 ZIP as a public prerelease from main
@@ -77,7 +77,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          VERSION=v3.0.0-beta.2
+          VERSION=v3.0.0-beta.3
           if gh release view "$VERSION" >/dev/null 2>&1; then
             echo "Release already exists: preserve the published download unchanged."
             exit 0
@@ -87,5 +87,5 @@ jobs:
             "dist/flight-starter-$VERSION.zip.sha256" \
             --target "$GITHUB_SHA" \
             --title "Flight Starter Kit V3 avec CodeGraft ($VERSION)" \
-            --notes "V3 beta.2 : MCP Native Actions (même service PHP exposé via web + MCP), contrôles ACL/tenant, écran de parité et CodeGraft intégré. ZIP autonome pour site de test neuf. Tests automatiques réalisés ; OAuth membre/tenant et recette o2switch encore nécessaires. Ne pas écraser une installation existante." \
+            --notes "V3 beta.3 : Modules & réglages, thèmes/couleurs, configuration Stripe/Google/GitHub/SMTP et MCP Native Actions (même service PHP exposé via web + MCP), contrôles ACL/tenant, écran de parité et CodeGraft intégré. ZIP autonome pour site de test neuf. Tests automatiques réalisés ; OAuth membre/tenant et recette o2switch encore nécessaires. Ne pas écraser une installation existante." \
             --prerelease

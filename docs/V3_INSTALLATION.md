@@ -1,10 +1,10 @@
 # Installer Flight Starter Kit V3
 
-> **Version actuelle :** [v3.0.0-beta.2](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.2), bêta technique pour un nouveau site de test.
+> **Version actuelle :** [v3.0.0-beta.3](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.3), bêta technique pour un nouveau site de test.
 
 ## Télécharger
 
-**[ZIP autonome V3](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.2/flight-starter-v3.0.0-beta.2.zip)** · [SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.2/flight-starter-v3.0.0-beta.2.zip.sha256)
+**[ZIP autonome V3](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.3/flight-starter-v3.0.0-beta.3.zip)** · [SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.3/flight-starter-v3.0.0-beta.3.zip.sha256)
 
 Il ne faut pas utiliser `Code → Download ZIP` ni un artefact d'une branche : ces téléchargements ne constituent pas la distribution officielle.
 
@@ -41,3 +41,7 @@ Les tests automatisés GitHub Actions ont réussi : génération, installation d
 **À tester sur un sous-domaine jetable avant production :** parcours d'installation HTTP réel sur o2switch, OAuth ChatGPT, permissions, changements multifichiers, restauration et sauvegarde de la base. La bêta n'est pas une mise à niveau automatique de l'ancienne V3 : ne pas décompresser sur l'installation existante.
 
 Voir la [présentation principale](../README.md) et les [Releases officielles](https://github.com/titomus/flightphp-starter-kit/releases).
+
+## Modules & réglages
+
+L'installateur propose un volet optionnel pour le thème et les couleurs ainsi que la préparation de Google, GitHub et SMTP. Les clés externes se configurent après installation sur **`/admin/settings`**. [Guide complet](MODULES_ET_REGLAGES.md).
