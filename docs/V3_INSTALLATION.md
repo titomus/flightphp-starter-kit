@@ -1,10 +1,10 @@
 # Installer Flight Starter Kit V3
 
-> **Version actuelle :** [v3.0.0-beta.1](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.1), bêta technique pour un nouveau site de test.
+> **Version actuelle :** [v3.0.0-beta.2](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.2), bêta technique pour un nouveau site de test.
 
 ## Télécharger
 
-**[ZIP autonome V3](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.1/flight-starter-v3.0.0-beta.1.zip)** · [SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.1/flight-starter-v3.0.0-beta.1.zip.sha256)
+**[ZIP autonome V3](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.2/flight-starter-v3.0.0-beta.2.zip)** · [SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.2/flight-starter-v3.0.0-beta.2.zip.sha256)
 
 Il ne faut pas utiliser `Code → Download ZIP` ni un artefact d'une branche : ces téléchargements ne constituent pas la distribution officielle.
 
