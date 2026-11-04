@@ -40,6 +40,22 @@ final class McpTemplateCatalog
             $files[$destination] = $this->renderer->render($contents, $vars);
         }
 
+        // Real framework-neutral CodeGraft engine, vendored from titomus/CodeGraft.
+        // Generated applications receive the sources, not merely four allowlisted files.
+        foreach (['Policy', 'Vault', 'Workspace', 'Mcp', 'Admin'] as $class) {
+            $source = __DIR__ . '/codegraft-src/' . $class . '.php';
+            $contents = file_get_contents($source);
+            if (!is_string($contents)) {
+                throw new RuntimeException('Missing CodeGraft core: ' . $source);
+            }
+            $files['app/CodeGraft/' . $class . '.php'] = $contents;
+        }
+        $factory = file_get_contents(__DIR__ . '/templates/mcp/CodeGraftFactory.php.tpl');
+        if (!is_string($factory)) {
+            throw new RuntimeException('Missing CodeGraft Flight bridge.');
+        }
+        $files['app/Mcp/CodeGraftFactory.php'] = $this->renderer->render($factory, $vars);
+
         return $files;
     }
 }
