@@ -117,10 +117,11 @@ final class BusinessActionRegistry
         if ($action['tenant_scoped']) {
             $actor->requireTenant();
         }
+        // Never pass unvalidated user inputs to an authorization callback.
+        $this->validateObject($arguments, $action['inputSchema'], 'arguments');
         if (($action['authorize'])($actor, $arguments) !== true) {
             throw new \DomainException('Business access denied.');
         }
-        $this->validateObject($arguments, $action['inputSchema'], 'arguments');
         $result = ($action['handler'])($actor, $arguments);
         if (!is_array($result)) {
             throw new \RuntimeException('Business action handler must return an array.');
