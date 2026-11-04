@@ -70,7 +70,22 @@ final class RuntimeSettings
                 if ($provider === 'stripe') $out[$target[0]][$target[1]][$target[2]][$key] = $p[$key];
                 else $out['social_auth']['providers'][$provider][$key] = $p[$key];
             }
-            if ($provider !== 'stripe') $out['social_auth']['enabled'] = true;
+            if ($provider === 'stripe') {
+                if (isset($p['plans']) && is_array($p['plans'])) {
+                    foreach (['starter_monthly','starter_yearly','lifetime'] as $plan) {
+                        if (isset($p['plans'][$plan]) && is_array($p['plans'][$plan])) {
+                            foreach (['enabled','price_id','amount'] as $key) {
+                                if (array_key_exists($key,$p['plans'][$plan])) {
+                                    $out['billing']['providers']['stripe']['plans'][$plan][$key] = $p['plans'][$plan][$key];
+                                }
+                            }
+                        }
+                    }
+                }
+                if (isset($p['default_plan'])) {
+                    $out['billing']['providers']['stripe']['default_plan'] = $p['default_plan'];
+                }
+            } else $out['social_auth']['enabled'] = true;
         }
         return $out;
     }
@@ -141,6 +156,28 @@ final class RuntimeSettings
                 if ($entered !== '') $value[$key] = $entered;
                 elseif (!isset($value[$key])) $value[$key] = (string) config(
                     $section === 'stripe' ? 'billing.providers.stripe.'.$key : 'social_auth.providers.'.$section.'.'.$key, '');
+            }
+            if ($section === 'stripe') {
+                $plans = [];
+                $first = null;
+                foreach (['starter_monthly','starter_yearly','lifetime'] as $plan) {
+                    $active = ($input['plan_'.$plan] ?? '') === '1';
+                    $price = $field($input,'price_'.$plan,120);
+                    $euros = $field($input,'amount_'.$plan,8);
+                    if ($active && (preg_match('/^price_[a-zA-Z0-9]{10,100}$/D',$price)!==1
+                        || !ctype_digit($euros) || (int)$euros<1 || (int)$euros>1000000)) {
+                        throw new \InvalidArgumentException('Price ID and positive EUR amount required for active plan: '.$plan);
+                    }
+                    $plans[$plan] = ['enabled'=>$active,
+                        'price_id'=>$active ? $price : '',
+                        'amount'=>$active ? (int)$euros * 100 : 0];
+                    if ($active && $first === null) $first = $plan;
+                }
+                if ($enabled && $first === null) {
+                    throw new \InvalidArgumentException('Activate at least one valid Stripe price.');
+                }
+                $value['plans'] = $plans;
+                if ($first !== null) $value['default_plan'] = $first;
             }
             if ($enabled) {
                 if ($section === 'stripe') {
