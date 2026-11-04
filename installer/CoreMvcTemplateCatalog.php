@@ -36,7 +36,7 @@ final class CoreMvcTemplateCatalog
             'app/routes/web.php' => $this->renderer->render($this->templateWebRoutes(), $vars),
             'app/routes/api.php' => $this->renderer->render($this->templateApiRoutes(), $vars),
             'app/routes/admin_generated.php' => $this->templateAdminGeneratedRoutes(),
-            'app/Views/layouts/main.php' => $this->templateMainLayout(),
+            'app/Views/layouts/main.php' => $this->renderer->render($this->templateMainLayout(), $vars),
             'app/Views/home.php' => $this->templateHomeView(),
             'app/Views/account/index.php' => $this->templateAccountView(),
             'app/Views/billing/pricing.php' => $this->templatePricingView(),
