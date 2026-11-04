@@ -123,6 +123,7 @@ final class Policy
             'app/Controllers/Admin', 'app/Controllers/Auth', 'app/Middleware',
             'app/Database', 'app/Support', 'app/Console', 'app/config',
             'app/Services/Auth.php', 'app/Services/Database.php',
+            'app/Services/RuntimeSettings.php',
             'public/index.php', 'install.php',
         ] as $systemPath) {
             if (self::under($lower, strtolower($systemPath))) {

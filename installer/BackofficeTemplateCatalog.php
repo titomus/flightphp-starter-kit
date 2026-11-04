@@ -13,7 +13,6 @@ final class BackofficeTemplateCatalog
         return [
             'app/Controllers/Admin/SettingsController.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/admin/SettingsController.php.tpl'), $vars),
             'app/Views/admin/settings.php' => (string) file_get_contents(__DIR__ . '/templates/admin/settings.php.tpl'),
-            'app/Services/RuntimeSettings.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/admin/RuntimeSettings.php.tpl'), $vars),
             'app/Controllers/Admin/DashboardController.php' => $this->renderer->render($this->templateAdminDashboardController(), $vars),
             'app/Controllers/Admin/McpSettingsController.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/mcp/CodeGraftAdminController.php.tpl'), $vars),
             'app/Views/admin/mcp-settings.php' => (string) file_get_contents(__DIR__ . '/templates/mcp/CodeGraftAdminView.php.tpl'),

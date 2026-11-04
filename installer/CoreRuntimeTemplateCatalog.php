@@ -15,6 +15,7 @@ final class CoreRuntimeTemplateCatalog
             'app/Support/helpers.php' => $this->renderer->render($this->templateHelpers(), $vars),
             'app/Support/Env.php' => $this->renderer->render($this->templateEnvLoader(), $vars),
             'app/Services/Config.php' => $this->renderer->render($this->templateConfigService(), $vars),
+            'app/Services/RuntimeSettings.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/admin/RuntimeSettings.php.tpl'), $vars),
             'app/Services/Database.php' => $this->renderer->render($this->templateDatabaseService(), $vars),
             'app/Services/Auth.php' => $this->renderer->render($this->templateAuthService(), $vars),
             'app/Services/GithubOAuth.php' => $this->renderer->render($this->templateGithubOAuthService(), $vars),
