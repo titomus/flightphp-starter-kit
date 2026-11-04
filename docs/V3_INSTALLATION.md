@@ -1,38 +1,43 @@
-# Flight Starter Kit V3 (préversion)
+# Installer Flight Starter Kit V3
 
-## Installation sur o2switch
+> **Version actuelle :** [v3.0.0-beta.1](https://github.com/titomus/flightphp-starter-kit/releases/tag/v3.0.0-beta.1), bêta technique pour un nouveau site de test.
 
-1. Télécharger l'artifact ZIP V3 d'une exécution GitHub Actions réussie.
-2. Décompresser **tout** le ZIP dans un répertoire dédié au projet.
-3. Faire pointer le document root du domaine vers le sous-répertoire `public/`.
-4. Activer HTTPS et PHP 8.2+ avec PDO SQLite, mbstring, ZIP, OpenSSL et FileInfo.
-5. Ouvrir `https://votre-domaine/install.php`.
-6. Lire le code créé dans `.flight-install-access` **à la racine privée**, puis déverrouiller.
-7. Remplir le formulaire. Aucun jeton GitHub, terminal, Composer ou Node.js n'est nécessaire sur le serveur.
+## Télécharger
 
-L'installateur refuse d'écraser un site existant. Il génère les fichiers applicatifs, les migrations et le compte propriétaire, puis supprime le paquet privé `.flight-package/` et son propre fichier public après réussite.
+**[ZIP autonome V3](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.1/flight-starter-v3.0.0-beta.1.zip)** · [SHA-256](https://github.com/titomus/flightphp-starter-kit/releases/download/v3.0.0-beta.1/flight-starter-v3.0.0-beta.1.zip.sha256)
 
-**Ne jamais configurer le domaine pour servir la racine du projet** : seuls les fichiers sous `public/` doivent être accessibles via HTTP.
+Il ne faut pas utiliser `Code → Download ZIP` ni un artefact d'une branche : ces téléchargements ne constituent pas la distribution officielle.
 
-## Déploiement MCP
+## Installation sur o2switch et hébergement PHP
 
-Le déploiement de code nécessite simultanément :
-- un accès OAuth valide avec le scope `app:deploy` ;
-- l'approbation du propriétaire depuis `/admin/mcp` ;
-- `ATELIER_CODE_UPDATES_ENABLED=true` dans le `.env` privé ;
-- la validation de la proposition et `confirmed=true` lors du déploiement.
+1. Télécharger le ZIP de la Release et le décompresser **entièrement** dans un nouveau dossier de projet.
+2. Configurer le domaine pour que son document root pointe sur **`projet/public/`**, jamais sur la racine.
+3. Activer HTTPS et PHP 8.2+ avec PDO SQLite, mbstring, ZIP, OpenSSL et FileInfo.
+4. Ouvrir `https://votre-domaine/install.php`.
+5. Lire le secret créé dans **`.flight-install-access`**, à la racine privée du projet, et déverrouiller.
+6. Choisir le profil de l'application et les options (membres, Stripe et/ou MCP), puis créer le propriétaire.
+7. Après installation, se connecter à `/admin/login`. L'installateur supprime ses fichiers temporaires et bloque une seconde installation.
 
-La permission du propriétaire est désactivée par défaut. Le retrait de la case dans l'administration révoque les nouveaux déploiements, même si le jeton OAuth possède encore le scope `app:deploy`. La lecture des fichiers métier et les demandes d'évolution sont des permissions distinctes. Les sauvegardes et restaurations du moteur MCP existant restent à valider sur un site de test.
+Pas de Composer, Node.js ou clé d'accès GitHub à saisir sur l'hébergement. L'installateur ne remplace jamais une application préexistante.
 
-## Vérifications avant fusion
+## CodeGraft natif dans la V3
 
-- Exécution GitHub Actions V3 réussie avec un artifact ZIP.
-- Installation sur un nouveau sous-domaine HTTPS o2switch.
-- Test connexion administrateur, écran IA & MCP, activation/révocation et contrôle d'un déploiement refusé.
-- Test déploiement confirmé, sauvegarde puis restauration.
-- Vérification du poids de chaque paquet avec `python3 scripts/audit-v3-zip.py dist/flight-starter-v3.0.0-alpha.1.zip`.
-- Aucune fusion dans `main`, suppression de branche ou migration d'application existante avant validation.
+Lorsque MCP est activé, ouvrir **`/admin/mcp`** :
+- Choisir précisément les dossiers lisibles et modifiables et les outils autorisés.
+- Vérifier l'URL OAuth sur **`https://votre-domaine/mcp`**.
+- Autoriser les déploiements seulement après validation de la configuration et une nouvelle authentification propriétaire.
+- Consulter les connexions OAuth, journaux, versions et restaurations.
 
-## Limites
+**Trois verrous pour publier :** scope OAuth `app:deploy`, validation du propriétaire dans `/admin/mcp`, et `ATELIER_CODE_UPDATES_ENABLED=true` dans le `.env` privé. L'atelier relit les autorisations à chaque appel.
 
-Cette V3 est une préversion. Le ZIP peut être lourd parce qu'il contient un ensemble de dépendances Composer partagé et trois variantes de thèmes précompilées. Ne pas retirer une dépendance avant de confirmer qu'elle n'est utilisée par aucune des variantes.
+Le coffre privé CodeGraft doit impérativement rester en dehors de tout document root. Si l'hébergement emploie plusieurs racines web, définir `CODEGRAFT_VAULT_DIR` avec un chemin absolu privé.
+
+[Documentation CodeGraft intégrée](V3_CODEGRAFT.md)
+
+## Validation avant mise en production
+
+Les tests automatisés GitHub Actions ont réussi : génération, installation depuis le paquet autonome, validations PHP et cycle préparation → déploiement → rollback CodeGraft.
+
+**À tester sur un sous-domaine jetable avant production :** parcours d'installation HTTP réel sur o2switch, OAuth ChatGPT, permissions, changements multifichiers, restauration et sauvegarde de la base. La bêta n'est pas une mise à niveau automatique de l'ancienne V3 : ne pas décompresser sur l'installation existante.
+
+Voir la [présentation principale](../README.md) et les [Releases officielles](https://github.com/titomus/flightphp-starter-kit/releases).
