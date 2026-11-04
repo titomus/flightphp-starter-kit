@@ -304,6 +304,20 @@ $enhancement = <<<'JS'
 (() => {
   const type = document.querySelector('select[name="type"]');
   const theme = document.querySelector('select[name="design_preset"]');
+  const primary = document.querySelector('input[name="primary"]');
+  const accent = document.querySelector('input[name="accent"]');
+  let manuallyColored = false;
+  [primary,accent].forEach(el=>el?.addEventListener('input',()=>{ manuallyColored=true; }));
+  function syncThemeColors(){
+    if(manuallyColored || !theme || !primary || !accent) return;
+    const palettes = {
+      saas:['#2563eb','#14b8a6'],
+      outil_metier:['#0f766e','#f59e0b'],
+      blog:['#9a3412','#0f766e']
+    };
+    [primary.value,accent.value] = palettes[theme.value] || palettes.saas;
+  }
+  theme?.addEventListener('change',syncThemeColors);
   const members = document.querySelector('input[type="checkbox"][name="members"]');
   const mcp = document.querySelector('input[type="checkbox"][name="mcp"]');
   const stripe = document.querySelector('input[type="checkbox"][name="stripe"]');
@@ -316,6 +330,7 @@ $enhancement = <<<'JS'
   type.addEventListener('change', () => {
     const business = type.value === 'saas' || type.value === 'outil_metier';
     if (theme) theme.value = type.value === 'outil_metier' ? 'outil_metier' : business ? 'saas' : 'blog';
+    syncThemeColors();
     members.checked = business;
     mcp.checked = business;
     stripe.checked = false;
