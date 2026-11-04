@@ -46,7 +46,12 @@ final class WebActionController
             if (!is_array($args) || ($args !== [] && array_is_list($args))) {
                 throw new \InvalidArgumentException('A JSON object is required.');
             }
-            $actor = ActionContext::fromWebSession();
+            try {
+                $actor = ActionContext::fromWebSession();
+            } catch (\RuntimeException $e) {
+                $this->respond(401, 'Authentication required');
+                return;
+            }
             $result = BusinessActionRegistry::fromApplication()->invoke($name, $args, $actor);
             http_response_code(200);
             echo json_encode(['data' => $result], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
