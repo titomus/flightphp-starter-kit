@@ -421,6 +421,12 @@ final class Config
             $key = basename($file, '.php');
             self::$items[$key] = require $file;
         }
+        // Private allowlisted settings are loaded on each request.
+        // Their storage is outside document root; they never execute PHP.
+        if (class_exists(RuntimeSettings::class)) {
+            $overrides = RuntimeSettings::overrides(RuntimeSettings::read());
+            self::$items = array_replace_recursive(self::$items, $overrides);
+        }
     }
 
     public static function get(?string $key = null, mixed $default = null): mixed

@@ -27,6 +27,7 @@ final class ProjectBlueprint
             'app/Models',
             'app/Queues',
             'app/Services',
+            'app/storage/config',
             'app/storage',
             'app/storage/cache',
             'app/storage/logs',

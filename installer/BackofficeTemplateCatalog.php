@@ -11,6 +11,9 @@ final class BackofficeTemplateCatalog
     public function files(array $vars): array
     {
         return [
+            'app/Controllers/Admin/SettingsController.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/admin/SettingsController.php.tpl'), $vars),
+            'app/Views/admin/settings.php' => (string) file_get_contents(__DIR__ . '/templates/admin/settings.php.tpl'),
+            'app/Services/RuntimeSettings.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/admin/RuntimeSettings.php.tpl'), $vars),
             'app/Controllers/Admin/DashboardController.php' => $this->renderer->render($this->templateAdminDashboardController(), $vars),
             'app/Controllers/Admin/McpSettingsController.php' => $this->renderer->render((string) file_get_contents(__DIR__ . '/templates/mcp/CodeGraftAdminController.php.tpl'), $vars),
             'app/Views/admin/mcp-settings.php' => (string) file_get_contents(__DIR__ . '/templates/mcp/CodeGraftAdminView.php.tpl'),
@@ -180,6 +183,14 @@ if ((bool) config('backoffice.enabled', false)) {
         \{{namespace}}\Middleware\VerifyCsrfMiddleware::class,
     ], [new \{{namespace}}\Controllers\Admin\LoginController(), 'destroy']));
 
+    \Flight::route('GET ' . config('backoffice.path','/admin') . '/settings', middleware([
+        new \{{namespace}}\Middleware\AuthenticateMiddleware('admin'),
+    ], [new \{{namespace}}\Controllers\Admin\SettingsController(), 'index']));
+    \Flight::route('POST ' . config('backoffice.path','/admin') . '/settings', middleware([
+        new \{{namespace}}\Middleware\AuthenticateMiddleware('admin'),
+        \{{namespace}}\Middleware\VerifyCsrfMiddleware::class,
+    ], [new \{{namespace}}\Controllers\Admin\SettingsController(), 'update']));
+
     if (class_exists(\{{namespace}}\Mcp\CodeWorkspace::class)) {
         \Flight::route('GET ' . config('backoffice.path', '/admin') . '/mcp', middleware([
             new \{{namespace}}\Middleware\AuthenticateMiddleware('admin'),
@@ -225,15 +236,17 @@ PHP;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title ?? 'BackOffice', ENT_QUOTES, 'UTF-8') ?></title>
     <?= vite_tags(['resources/js/app.js']) ?>
+    <style><?= \{{namespace}}\Services\RuntimeSettings::css() ?></style>
 </head>
 <?php $design = config('design', []); $shellClass = !empty($design['layout']['fullscreen']) ? 'site-shell--full' : 'site-shell--contained'; ?>
 <body class="site-body">
 <main class="site-shell <?= $shellClass ?>">
     <nav class="site-nav mb-8">
-        <strong class="display-title text-lg tracking-wide"><?= htmlspecialchars(config('app.name', 'Flight Starter'), ENT_QUOTES, 'UTF-8') ?></strong>
+        <strong class="display-title text-lg tracking-wide"><?php if(config('branding.logo','')): ?><img alt="Logo" src="<?= htmlspecialchars(config('branding.logo'), ENT_QUOTES, 'UTF-8') ?>" style="max-height:46px;max-width:180px"><?php else: ?><?= htmlspecialchars(config('app.name', 'Flight Starter'), ENT_QUOTES, 'UTF-8') ?><?php endif; ?></strong>
         <div class="flex items-center gap-5 text-sm font-medium">
             <a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>">Dashboard</a>
             <?php if (class_exists(\{{namespace}}\Mcp\CodeWorkspace::class)): ?><a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/mcp">CodeGraft</a><?php endif; ?>
+            <a class="site-link" href="<?= htmlspecialchars(config('backoffice.path', '/admin'), ENT_QUOTES, 'UTF-8') ?>/settings">Modules & réglages</a>
             <a class="site-link" href="/">Site</a>
             <?php if (auth('admin')->check()): ?>
                 <form method="post" action="<?= htmlspecialchars(config('auth.guards.admin.logout_path', '/admin/logout'), ENT_QUOTES, 'UTF-8') ?>">
